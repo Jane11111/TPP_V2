@@ -43,6 +43,9 @@ class AttentionTPP_model(base_model):
 
 
 class AttentionTPP_MLT(AttentionTPP_model):
+    """
+    每种类型用不同的全连接层预测
+    """
 
 
     def generate_emb(self,type_lst_emb, time_lst, target_type, target_time, seq_len, sims_lst):
