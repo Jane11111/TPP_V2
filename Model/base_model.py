@@ -91,7 +91,7 @@ class base_model(object):
 
     def metrics_likelihood(self,sess,batch_data):
 
-        output_feed = [self.cross_entropy_loss]
+        output_feed = [tf.nn.softmax(self.lambda_prob),self.labels]
         input_dic = self.embedding.make_feed_dic(batch_data = batch_data)
         input_dic[self.now_batch_size] = len(batch_data)
         outputs = sess.run(output_feed,input_dic)
@@ -132,15 +132,33 @@ class base_model(object):
             one_hot_type = tf.one_hot(
                 self.target_type, depth = self.FLAGS.type_num, dtype = tf.float32
             )
-            cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits(labels = one_hot_type,
-                                                                              logits = self.lambda_prob)
-            self.cross_entropy_loss = tf.reduce_mean(cross_entropy_loss)
-            self.loss = self.cross_entropy_loss
+            self.labels = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num])
+
+
+
+            # 将预测的值换成0、1
+            # one = tf.ones_like(self.lambda_prob)
+            # zero = tf.zeros_like(self.lambda_prob)
+            #
+            # max_lambda = tf.reshape(tf.reduce_max(self.lambda_prob),[-1,1])
+            # resize_lambda = self.lambda_prob/max_lambda
+            # sparse_lambda = tf.where(resize_lambda <1, x = zero, y=one)
+
+            # cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels = self.labels,
+            #                                                                 logits = self.lambda_prob)
+            #
+            # self.cross_entropy_loss = tf.reduce_mean(cross_entropy_loss)
+            # self.loss = self.cross_entropy_loss
+
+
+            pairwise_loss = tf.losses.mean_pairwise_squared_error(labels = self.labels,
+                                                                  predictions=tf.nn.softmax(self.lambda_prob))
+            self.loss = tf.reduce_mean(pairwise_loss)
 
             tf.summary.scalar('l2_norm', l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
             tf.summary.scalar('loss', self.loss)
-            tf.summary.scalar('cross entropy loss', self.cross_entropy_loss)
+            # tf.summary.scalar('cross entropy loss', self.cross_entropy_loss)
         self.cal_gradient(tf.trainable_variables())
 
 

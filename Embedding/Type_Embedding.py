@@ -10,19 +10,19 @@ from Embedding.base_embedding import Base_embedding
 
 class Type_embedding(Base_embedding):
 
-    def __init(self,is_training = True, type_num = 0, max_seq_len = 0, max_sims_len = 0, FLAGS = None):
+    def __init__(self,is_training = True, type_num = 0, max_seq_len = 0, sims_len = 0, FLAGS = None):
         super(Type_embedding, self).__init__(is_training= is_training)
 
         self.type_num = type_num
         self.max_seq_len = max_seq_len
-        self.max_sims_len = max_sims_len
+        self.sims_len = sims_len
         self.FLAGS = FLAGS
 
     def init_placeholders(self):
 
         with tf.variable_scope("input_layer"):
-            self.type_lst = tf.placeholder(tf.int32, [None,self.max_seq_len], name = 'type_lst')
-            self.time_lst = tf.placeholder(tf.float32, [None,self.max_seq_len], name = 'time_lst')
+            self.type_lst = tf.placeholder(tf.int32, [None,None], name = 'type_lst')
+            self.time_lst = tf.placeholder(tf.float32, [None,None], name = 'time_lst')
             # self.position_lst = tf.placeholder(tf.int32, [None, self.max_seq_len], name = 'position_lst')
 
             self.target_type = tf.placeholder(tf.int32, [None], name = 'target_type')
@@ -32,7 +32,7 @@ class Type_embedding(Base_embedding):
             # # 当前sequence采样的长度
             # self.sims_len = tf.placeholder(tf.int32, [None,], name = 'sims_len')
             # 当前sequence采样的时间lst 已补齐
-            self.sims_time_lst = tf.placeholder(tf.float32, [None, self.max_sims_len], name= 'sims_time_lst')
+            self.sims_time_lst = tf.placeholder(tf.float32, [None, None], name= 'sims_time_lst')
 
     def get_type_embedding(self,type_lst):
         """
@@ -50,7 +50,7 @@ class Type_embedding(Base_embedding):
     def get_embedding(self, num_units):
 
         self.type_emb_lookup_table = self.init_embedding_lookup_table(name = 'type',
-                                                                      total_count = self.type_count,
+                                                                      total_count = self.type_num,
                                                                       embedding_dim = num_units,
                                                                       is_training = self.is_training)
 
@@ -88,12 +88,12 @@ class Type_embedding(Base_embedding):
             target_time.append(example[3])
             seq_len.append(example[4])
             sims_time_lst.append(example[5])
-        feed_dic[self.type_lst] = type_lst
-        feed_dic[self.time_lst] = time_lst
-        feed_dic[self.target_type] = target_type
-        feed_dic[self.target_time] = target_time
-        feed_dic[self.seq_len] = seq_len
-        feed_dic[sims_time_lst] = sims_time_lst
+        feed_dic[self.type_lst] = np.array(type_lst)
+        feed_dic[self.time_lst] = np.array(time_lst)
+        feed_dic[self.target_type] = np.array(target_type)
+        feed_dic[self.target_time] = np.array(target_time)
+        feed_dic[self.seq_len] = np.array(seq_len)
+        feed_dic[self.sims_time_lst] = np.array(sims_time_lst)
 
 
         return feed_dic

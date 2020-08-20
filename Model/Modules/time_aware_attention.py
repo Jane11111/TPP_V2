@@ -395,15 +395,17 @@ class Time_Aware_Attention():
             # Normalize
             outputs = self.normalize(outputs)  # (N, T_q, C)
 
+
+        #TODO 假如只用历史的平均呢
+        keys = tf.reduce_mean(keys, axis = 1) # batch_size, num_units
+        keys = tf.expand_dims(keys, axis = 1) # batch_size, 1, num_units
+        keys = tf.tile(keys, [1,queries.shape[1],1]) # batch_size, T_q, num_units
+        keys_queries = tf.concat([queries, keys], axis = 2) # batch_size, T_q, num_units * 2
+        outputs = keys_queries
+
+
         return outputs, att_vec
-        # # TODO 能不能不用attention了，直接把历史和当前拼接起来？
-        # mean_keys = tf.reduce_mean(keys,axis=1) # batch_size, num_units
-        # # queries batch_size, max_sims+1, num_units
-        # mean_keys = tf.tile(mean_keys,[1,t_querys_length])
-        # mean_keys = tf.reshape(mean_keys, [-1,t_querys_length,num_units])
-        #
-        # emb = mean_keys + queries
-        # return  emb, att_vec
+
 
 
 
@@ -510,7 +512,7 @@ class Time_Aware_Attention():
 
 
         # 此处怀疑有错误，非常重要
-        dec = tf.reshape(dec, [-1, num_units])
+        # dec = tf.reshape(dec, [-1, num_units])
         return dec
 
     # def vanilla_attention(self, queries,

@@ -11,7 +11,7 @@ class intensity_base(object):
         pass
 
 
-    def cal_intensity(self, emb, layer_units, scope):
+    def cal_intensity(self, emb, layer_units, scope, num):
         """
 
         :param emb: 当前type time作为query，历史type time 作为key得到的emb
@@ -28,8 +28,8 @@ class intensity_base(object):
                                     activation = tf.nn.relu)
                 input_data = H
             outputs = tf.layers.dense(input_data,
-                                      units = 1,
-                                      activation = tf.nn.softplus)
+                                      units = num,
+                                      activation = tf.nn.relu)
         return outputs
 
 
@@ -52,8 +52,30 @@ class mlt_intensity(intensity_base):
         """
 
         scope = 'type_intensity_calculation_' + str(type)
-        predict_type_intensity = self.cal_intensity(emb, layer_units, scope)
+        predict_type_intensity = self.cal_intensity(emb, layer_units, scope,1)
         return predict_type_intensity
 
 
+
+class single_intensity(intensity_base):
+    """
+    不同type的强度，实用不同的网络结构
+    """
+
+    def __init__(self):
+        super(single_intensity, self).__init__()
+
+
+    def cal_type_intensity(self, emb,  layer_units, type_num):
+        """
+
+        :param emb:
+        :param type: 当前的type编号
+        :param layer_units: 计算intensity的网络结构
+        :return:
+        """
+
+        scope = 'type_intensity_calculation_' + str(type)
+        predict_type_intensity = self.cal_intensity(emb, layer_units, scope,type_num)
+        return predict_type_intensity
 

@@ -11,18 +11,16 @@ class model_parameter:
         self.flags.DEFINE_integer('hidden_units', 128, 'Number of hidden units in each layer')
         self.flags.DEFINE_integer('num_blocks', 1, 'Number of blocks in each attention')
         self.flags.DEFINE_integer('num_heads', 1, 'Number of heads in each attention')
-        self.flags.DEFINE_integer('num_units', 5, 'Number of units in each attention')
-
+        self.flags.DEFINE_integer('num_units', 16, 'Number of units in each attention')
+        self.flags.DEFINE_integer('type_emb_units', 16, 'Number of units in each attention')
+        self.flags.DEFINE_list('layers',[8],'layer units of intensity calculation network')
         self.flags.DEFINE_float('dropout', 0.5, 'Dropout probability(0.0: no dropout)')
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
-        # self.flags.DEFINE_integer('itemid_embedding_size', 16, 'Item id embedding_beauty.csv size')
-        self.flags.DEFINE_integer('cateid_embedding_size', 5, 'Cate id embedding_beauty.csv size')
 
-        self.flags.DEFINE_boolean('concat_time_emb', True, 'Concat time-embedding_beauty.csv instead of Add')
 
         # 随机梯度下降sgd
         self.flags.DEFINE_string('optimizer', 'adam', 'Optimizer for training: (adadelta, adam, rmsprop,sgd*)')
-        self.flags.DEFINE_float('learning_rate', 0.005, 'Learning rate')
+        self.flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
         self.flags.DEFINE_float('decay_rate', 0.001, 'decay rate')
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
@@ -33,8 +31,8 @@ class model_parameter:
         # 最大迭代次数
         self.flags.DEFINE_integer('max_epochs', 200, 'Maximum # of training epochs')
         # 每100个批次的训练状态
-        self.flags.DEFINE_integer('display_freq', 500, 'Display training status every this iteration')
-        self.flags.DEFINE_integer('eval_freq', 200, 'Display training status every this iteration')
+        self.flags.DEFINE_integer('display_freq', 100, 'Display training status every this iteration')
+        self.flags.DEFINE_integer('eval_freq', 5000, 'Display training status every this iteration')
         self.flags.DEFINE_integer('max_len', 150, 'max len of attention')
         self.flags.DEFINE_integer('global_step', 100, 'global_step to summery AUC')
 
@@ -43,11 +41,9 @@ class model_parameter:
         self.flags.DEFINE_float('per_process_gpu_memory_fraction', 0.8,
                                 'Gpu memory use fraction, 0.0 for allow_growth=True')
         # date process parameters
-        self.flags.DEFINE_integer('gap_num', 6, 'sequence gap')
         self.flags.DEFINE_boolean('is_training', True, 'train of inference')
         self.flags.DEFINE_string('type', "twitter_event", 'raw date type')
-        self.flags.DEFINE_integer('max_history_len',50,'the maximum length of history event')
-        self.flags.DEFINE_integer('max_length_seq', 3494, 'the length of the seq ')
+        self.flags.DEFINE_integer('max_seq_len',50,'the maximum length of history event')
 
         #parameters about origin_data
         self.flags.DEFINE_boolean('init_origin_data', False, 'whether to initialize the raw data')
@@ -71,68 +67,62 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_integer('experiment_version', 2, 'the type of experiment')
-        self.flags.DEFINE_string('experiment_type', "Attention_MLT_TPP", 'experiment date type, e.g. istsbp, pistrec')
+        self.flags.DEFINE_string('model_name', "AttentionTPP_MLT", 'experiment date type, e.g. istsbp, pistrec')
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
-        self.flags.DEFINE_integer('max_sims_len',3494,'max number of samples')
+        self.flags.DEFINE_integer('sims_len',10,'max number of samples')
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
         self.flags.DEFINE_string('data_name','hawkes','the type of the dataset')
 
-        self.flags.DEFINE_string('in_data_root_path','D://Project/TPP/data/origin_data/data_event/','the root path of the dataset')
-        self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP/data/training_testing_data/data_event/', 'the root path of the dataset')
+        self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
+        self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
 
     def get_parameter(self,type):
 
         if type == 'twitter_event':
             self.flags.FLAGS.type_num = 3
-            self.flags.FLAGS.max_length_seq = 3494
-            self.flags.FLAGS.max_sims_len = 3494
-            self.flags.FLAGS.max_history_len = 50
-            self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/training_testing_data/data_hawkes/"
+            # self.flags.FLAGS.max_length_seq = 3494
+            self.flags.FLAGS.max_seq_len = 50
+            self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_hawkes/"
         elif type == 'twitter_retweet':
             self.flags.FLAGS.type_num = 3
-            self.flags.FLAGS.max_length_seq = 264
-            self.flags.FLAGS.max_sims_len = 264
-            self.flags.FLAGS.max_history_len = 100
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_retweet/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/training_testing_data/data_retweet/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP/data/origin_data/data_retweet/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP/data/training_testing_data/data_retweet/"
+            # self.flags.FLAGS.max_length_seq = 264
+            self.flags.FLAGS.max_seq_len = 100
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_retweet/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_retweet/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_retweet/"
 
         elif type == 'hawkes':
             self.flags.FLAGS.type_num = 5
-            self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_sims_len = 50
-            self.flags.FLAGS.max_history_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_hawkes/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP/data/training_testing_data/data_hawkes/"
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_hawkes/"
 
         elif type == 'hawkesinhib':
             self.flags.FLAGS.type_num = 5
-            self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_sims_len = 100
-            self.flags.FLAGS.max_history_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_hawkesinhib/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/training_testing_data/data_hawkesinhib/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP/data/origin_data/data_hawkesinhib/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP/data/training_testing_data/data_hawkesinhib/"
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkesinhib/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_hawkesinhib/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkesinhib/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_hawkesinhib/"
 
         elif type == 'conttime':
             self.flags.FLAGS.type_num = 5
-            self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_sims_len = 100
-            self.flags.FLAGS.max_history_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP/data/origin_data/data_conttime/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP/data/training_testing_data/data_conttime/"
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_conttime/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_conttime/"
 
         return  self.flags
 

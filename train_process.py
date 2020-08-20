@@ -4,7 +4,7 @@
 # @FileName: train_process.py
 
 
-
+import os
 import time
 import random
 import numpy as np
@@ -16,9 +16,10 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import AttentionTPP_MLT
+from Model.AttentionTPP import AttentionTPP_MLT,AttentionTPP
 
-import os
+from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
+
 random.seed(1234)
 np.random.seed(1234)
 tf.set_random_seed(1234)
@@ -67,7 +68,7 @@ class Train_main_process:
             gpu_option = tf.GPUOptions()
         else:
             gpu_option = tf.GPUOptions(
-                per_process_gpu_memory_fraction = self.FLAGS.per_process_gpu_memory_fraction, allow_gwoth = True
+                per_process_gpu_memory_fraction = self.FLAGS.per_process_gpu_memory_fraction, allow_growth = True
             )
 
         os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
@@ -86,6 +87,8 @@ class Train_main_process:
 
             if self.FLAGS.model_name == 'AttentionTPP_MLT':
                 self.model = AttentionTPP_MLT(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'AttentionTPP':
+                self.model = AttentionTPP(self.FLAGS, self.emb, self.sess)
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 
@@ -93,14 +96,30 @@ class Train_main_process:
             def eval_model():
 
                 total_event_num = len(self.test_set)
-                cross_entropy_lst = []
+                type_prob =  []
+                target_type = [] # one_hot 形式的
                 for step_i, batch_data in DataInput(self.test_set,self.FLAGS.test_batch_size):
-                    step_cross_entropy = self.model.metrics_likelihood(sess = self.sess,
+                    step_type_prob, step_target_type = self.model.metrics_likelihood(sess = self.sess,
                                                                        batch_data = batch_data)
-                    cross_entropy_lst.extend(list(step_cross_entropy))
+                    type_prob.extend(step_type_prob)
+                    target_type.extend(step_target_type)
 
-                avg_cross_entropy_loss = np.sum(cross_entropy_lst) / total_event_num
-                return avg_cross_entropy_loss
+                predict_type = []
+                for prob_arr in type_prob:
+                    idx = np.argmax(prob_arr)
+                    arr = np.zeros(shape=(self.FLAGS.type_num,))
+                    arr[idx] = 1
+                    predict_type.append(arr)
+                target_type = np.array(target_type)
+                predict_type = np.array(predict_type)
+                auc = roc_auc_score(target_type, predict_type,average='micro')
+                f1 = f1_score(target_type, predict_type,average='micro')
+                recall = recall_score(target_type,predict_type,average='micro')
+                precision = precision_score(target_type,predict_type,average='micro')
+                accuracy = accuracy_score(target_type, predict_type, )
+
+                return auc, f1, recall, precision, accuracy
+
 
             self.logger.info('learning rate: %f'%(self.FLAGS.learning_rate))
             self.logger.info('train set: %d'%len(self.train_set))
@@ -123,17 +142,26 @@ class Train_main_process:
 
 
                     if self.global_step % self.FLAGS.display_freq == 0:
-                        self.logger.info("epoch: %d, step: %d, global_step: %d" %(epoch, step_i, self.global_step))
-                        self.logger.info("train  loss: %.2f"%(avg_loss/ self.FLAGS.display_freq))
+                        self.logger.info("epoch: %d, step: %d, global_step: %d, train_loss :%.2f"
+                                         %(epoch, step_i, self.global_step,avg_loss/ self.FLAGS.display_freq))
                         avg_loss = 0.0
 
                     if self.global_step % self.FLAGS.eval_freq == 0:
-                        test_cross_entropy = eval_model()
-                        self.logger.info("cross entropy loss in test set: %.2f"%(test_cross_entropy))
+                        auc, f1, recall, precision, accuracy = eval_model()
+                        self.logger.info("auc: %.2f" % (auc))
+                        self.logger.info("f1: %.2f" % (f1))
+                        self.logger.info("recall: %.2f" % (recall))
+                        self.logger.info("precision: %.2f" % (precision))
+                        self.logger.info("accuracy: %.2f" % (accuracy))
 
                 self.logger.info("epoch : %d"%(epoch))
-                test_cross_entropy = eval_model()
-                self.logger.info("cross entropy loss in test set: %.2f" % (test_cross_entropy))
+                auc, f1, recall, precision, accuracy = eval_model()
+                self.logger.info("auc: %.2f" % (auc))
+                self.logger.info("f1: %.2f" % (f1))
+                self.logger.info("recall: %.2f" % (recall))
+                self.logger.info("precision: %.2f" % (precision))
+                self.logger.info("accuracy: %.2f" % (accuracy))
+
 
             self.save_model()
 
