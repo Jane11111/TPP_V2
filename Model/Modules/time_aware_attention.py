@@ -397,11 +397,11 @@ class Time_Aware_Attention():
 
 
         #TODO 假如只用历史的平均呢
-        keys = tf.reduce_mean(keys, axis = 1) # batch_size, num_units
-        keys = tf.expand_dims(keys, axis = 1) # batch_size, 1, num_units
-        keys = tf.tile(keys, [1,queries.shape[1],1]) # batch_size, T_q, num_units
-        keys_queries = tf.concat([queries, keys], axis = 2) # batch_size, T_q, num_units * 2
-        outputs = keys_queries
+        # keys = tf.reduce_mean(keys, axis = 1) # batch_size, num_units
+        # keys = tf.expand_dims(keys, axis = 1) # batch_size, 1, num_units
+        # keys = tf.tile(keys, [1,queries.shape[1],1]) # batch_size, T_q, num_units
+        # keys_queries = tf.concat([queries, keys], axis = 2) # batch_size, T_q, num_units * 2
+        # outputs = keys_queries
 
 
         return outputs, att_vec
