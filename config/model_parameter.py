@@ -8,12 +8,12 @@ class model_parameter:
         self.flags = tf.flags
         self.flags.DEFINE_string('version', 'bpr', 'model version')
         self.flags.DEFINE_string('checkpoint_path_dir', 'data/check_point/bisIE_adam_blocks2_adam_dropout0.5_lr0.0001/','directory of save model')
-        self.flags.DEFINE_integer('hidden_units', 128, 'Number of hidden units in each layer')
-        self.flags.DEFINE_integer('num_blocks', 1, 'Number of blocks in each attention')
+        self.flags.DEFINE_integer('hidden_units', 8, 'Number of hidden units in each layer')
+        self.flags.DEFINE_integer('num_blocks', 3, 'Number of blocks in each attention')
         self.flags.DEFINE_integer('num_heads', 1, 'Number of heads in each attention')
-        self.flags.DEFINE_integer('num_units', 16, 'Number of units in each attention')
-        self.flags.DEFINE_integer('type_emb_units', 16, 'Number of units in each attention')
-        self.flags.DEFINE_list('layers',[8],'layer units of intensity calculation network')
+        self.flags.DEFINE_integer('num_units', 32, 'Number of units in each attention')
+        self.flags.DEFINE_integer('type_emb_size', 32, 'Number of units in each attention')
+        self.flags.DEFINE_list('layers',[],'layer units of intensity calculation network')
         self.flags.DEFINE_float('dropout', 0.5, 'Dropout probability(0.0: no dropout)')
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
 
@@ -25,7 +25,7 @@ class model_parameter:
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
         # 训练批次32
-        self.flags.DEFINE_integer('train_batch_size', 64, 'Training Batch size')
+        self.flags.DEFINE_integer('train_batch_size', 16, 'Training Batch size')
         # 测试批次128
         self.flags.DEFINE_integer('test_batch_size', 64, 'Testing Batch size')
         # 最大迭代次数
@@ -67,14 +67,14 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_string('model_name', "AttentionTPP_MLT", 'experiment date type, e.g. istsbp, pistrec')
+        self.flags.DEFINE_string('model_name', "MTAM_TPP", 'experiment date type, e.g. istsbp, pistrec')
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
         self.flags.DEFINE_string('data_name','hawkes','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
@@ -91,7 +91,7 @@ class model_parameter:
         elif type == 'twitter_retweet':
             self.flags.FLAGS.type_num = 3
             # self.flags.FLAGS.max_length_seq = 264
-            self.flags.FLAGS.max_seq_len = 100
+            self.flags.FLAGS.max_seq_len = 264
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_retweet/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_retweet/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
@@ -100,7 +100,7 @@ class model_parameter:
         elif type == 'hawkes':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
+            self.flags.FLAGS.max_seq_len = 100
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkes/"
