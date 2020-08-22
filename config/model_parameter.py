@@ -20,12 +20,12 @@ class model_parameter:
 
         # 随机梯度下降sgd
         self.flags.DEFINE_string('optimizer', 'adam', 'Optimizer for training: (adadelta, adam, rmsprop,sgd*)')
-        self.flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
+        self.flags.DEFINE_float('learning_rate', 0.0001, 'Learning rate')
         self.flags.DEFINE_float('decay_rate', 0.001, 'decay rate')
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
         # 训练批次32
-        self.flags.DEFINE_integer('train_batch_size', 16, 'Training Batch size')
+        self.flags.DEFINE_integer('train_batch_size', 128, 'Training Batch size')
         # 测试批次128
         self.flags.DEFINE_integer('test_batch_size', 64, 'Testing Batch size')
         # 最大迭代次数
@@ -67,7 +67,7 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_string('model_name', "MTAM_TPP", 'experiment date type, e.g. istsbp, pistrec')
+        self.flags.DEFINE_string('model_name', "MTAM_TPP_E", 'experiment date type, e.g. istsbp, pistrec')
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
@@ -75,7 +75,7 @@ class model_parameter:
 
         #prepare data
         self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
-        self.flags.DEFINE_string('data_name','hawkes','the type of the dataset')
+        self.flags.DEFINE_string('data_name','twitter_retweet','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
