@@ -6,24 +6,20 @@
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import roc_auc_score,f1_score,recall_score,precision_score,accuracy_score
+from Model.Modules.net_utils import gather_indexes
 
 
-
-
-x = tf.constant([[0.5,0.3,0.8],
-                 [0.2,0.9,0.1],
-                 [0.7,0.4,0.7]])
-# _, indices = tf.math.top_k(x, k=1)
-# row_idx = tf.expand_dims(tf.range(tf.shape(x)[0]),axis = 1)
-# indices = tf.concat([row_idx,indices],axis = 1)
-# result = tf.scatter_nd(indices = indices, updates=tf.ones_like(tf.squeeze(indices)), shape=tf.shape(x))
-
-y = tf.reshape(tf.reduce_max(x,axis = 1),[-1,1])
-z = x/y
+type_num = 3
+target = [1,1,2,0]
+label_ids = tf.reshape(target, [-1])
+one_hot_labels = tf.one_hot(
+    label_ids, depth=type_num, dtype=tf.float32)
 
 with tf.Session() as sess:
-    print(sess.run(y))
-    print(sess.run(z))
+    print(sess.run(label_ids))
+    print('---------------')
+    print(sess.run(one_hot_labels))
+
     # print(sess.run(result))
 
 

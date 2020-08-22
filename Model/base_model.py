@@ -83,7 +83,7 @@ class base_model(object):
         input_dic[self.learning_rate] = learning_rate
         input_dic[self.now_batch_size] = len(batch_data)
 
-        output_feed = [self.loss, self.merged]
+        output_feed = [self.loss, self.l2_norm,self.merged]
 
         outputs = sess.run(output_feed, input_dic)
 
@@ -125,10 +125,10 @@ class base_model(object):
 
         with tf.name_scope('likelihood_loss'):
 
-            l2_norm = tf.add_n([
+            self.l2_norm = tf.add_n([
                 tf.nn.l2_loss(self.type_lst_embedding)
             ])
-
+            regulation_rate = self.FLAGS.regulation_rate
             one_hot_type = tf.one_hot(
                 self.target_type, depth = self.FLAGS.type_num, dtype = tf.float32
             )
@@ -144,23 +144,27 @@ class base_model(object):
             # resize_lambda = self.lambda_prob/max_lambda
             # sparse_lambda = tf.where(resize_lambda <1, x = zero, y=one)
 
+
+            # cross entropy loss
             # cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels = self.labels,
             #                                                                 logits = self.lambda_prob)
             #
             # self.cross_entropy_loss = tf.reduce_mean(cross_entropy_loss)
             # self.loss = self.cross_entropy_loss
 
+            # pairwise loss
+            # pairwise_loss = tf.losses.mean_pairwise_squared_error(labels = self.labels,
+            #                                                       predictions=tf.nn.softmax(self.lambda_prob))
+            # self.loss = tf.reduce_mean(pairwise_loss)
 
-            pairwise_loss = tf.losses.mean_pairwise_squared_error(labels = self.labels,
-                                                                  predictions=tf.nn.softmax(self.lambda_prob))
-            self.loss = tf.reduce_mean(pairwise_loss)
+            # 自定义loss
+            log_probs = tf.nn.log_softmax(self.lambda_prob)
 
-            tf.summary.scalar('l2_norm', l2_norm)
+            self.loss_origin = -tf.reduce_sum(log_probs * self.labels, axis=[-1])
+            self.loss = regulation_rate * self.l2_norm + tf.reduce_mean(self.loss_origin)
+
+            tf.summary.scalar('l2_norm', self.l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
             tf.summary.scalar('loss', self.loss)
             # tf.summary.scalar('cross entropy loss', self.cross_entropy_loss)
         self.cal_gradient(tf.trainable_variables())
-
-
-
-

@@ -29,7 +29,7 @@ class intensity_base(object):
                 input_data = H
             outputs = tf.layers.dense(input_data,
                                       units = num,
-                                      activation = tf.nn.relu)
+                                      activation = tf.nn.softplus)
         return outputs
 
 
@@ -79,3 +79,28 @@ class single_intensity(intensity_base):
         predict_type_intensity = self.cal_intensity(emb, layer_units, scope,type_num)
         return predict_type_intensity
 
+
+class e_intensity():
+    """
+    使用type table 计算强度
+    """
+
+    def __init__(self,W,type_num):
+        """
+
+        :param W: type_num, num_units
+        """
+        self.type_num = type_num
+        self.W = W
+
+
+    def cal_intensity(self,emb):
+
+        """
+
+        :param emb: batch_size, num_units
+        :return:  batch_size, type_num
+        """
+
+        intensity = tf.matmul(emb, self.W, transpose_b= True)
+        return intensity

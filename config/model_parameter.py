@@ -74,7 +74,7 @@ class model_parameter:
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
         self.flags.DEFINE_string('data_name','twitter_retweet','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')

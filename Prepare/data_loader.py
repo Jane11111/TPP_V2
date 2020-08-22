@@ -29,11 +29,11 @@ class DataLoader():
     def load_train_test(self):
 
 
-        origin_train_path = self.FLAGS.in_data_root_path + "train_large_time.json"
-        origin_test_path =  self.FLAGS.in_data_root_path + "test_large_time.json"
+        origin_train_path = self.FLAGS.in_data_root_path + "train.json"
+        origin_test_path =  self.FLAGS.in_data_root_path + "test.json"
 
-        train_path = self.FLAGS.out_data_root_path + "train_large_time.txt"
-        test_path = self.FLAGS.out_data_root_path + "test_large_time.txt"
+        train_path = self.FLAGS.out_data_root_path + "train.txt"
+        test_path = self.FLAGS.out_data_root_path + "test.txt"
 
         if self.FLAGS.split_data:
             self.write_file(origin_train_path, train_path, 'train')
@@ -94,9 +94,13 @@ class DataLoader():
             target_time = complete_time_lst[i]
 
             if i == 0: #TODO  使用历史生成h，接着把target与h通过全连接网络
-                seq_len = 1
-                type_lst = [0]
-                time_lst = [0]
+                seq_len = 2
+                type_lst = [0,0]
+                time_lst = [0,0]
+            elif i == 1:
+                seq_len = 2
+                type_lst = [ 0,complete_type_lst[0]]
+                time_lst = [ 0,complete_time_lst[0]]
 
             else:
                 seq_len = min(i,self.FLAGS.max_seq_len)

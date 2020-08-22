@@ -212,8 +212,8 @@ class Time_Aware_Attention():
             outputs = self.normalize(outputs)  # (N, T_q, C)
 
         return outputs, att_vec
-    def time_aware_multihead_attention(self,queries, # batch_size, t_q, num_units
-                            keys, # batch_size, t_k, num_units
+    def time_aware_multihead_attention(self,queries, # batch_size, t_q, type_emb_size
+                            keys, # batch_size, t_k, type_emb_size
                             key_length, # batch_size,
                             query_length, # batch_size,
                             t_querys, # batch_size, t_q
@@ -268,10 +268,13 @@ class Time_Aware_Attention():
             scope = variable_scope.get_variable_scope()
             with variable_scope.variable_scope(scope,reuse=None) as unit_scope:
                 with variable_scope.variable_scope(unit_scope):
+                    type_emb_size = queries.shape[-1]
+                    # time_input_w = variable_scope.get_variable("_time_input_w",
+                    #                                            shape=[num_units,num_units],
+                    #                                            dtype=queries.dtype)
                     time_input_w = variable_scope.get_variable("_time_input_w",
-                                                               shape=[num_units,num_units],
+                                                               shape=[type_emb_size, type_emb_size],
                                                                dtype=queries.dtype)
-
                     time_input_w1 = variable_scope.get_variable("_time_input_w1",
                                                                 shape=[t_querys_length, t_keys_length],
                                                                 dtype=queries.dtype)
@@ -291,8 +294,8 @@ class Time_Aware_Attention():
                                                                 shape=[t_querys_length, t_keys_length],
                                                                 dtype=queries.dtype)
 
-            time_query_key = tf.matmul(queries,time_input_w, name ='1')
-            time_query_key = tf.matmul(time_query_key,keys, transpose_b=True ,name ='2')
+            time_query_key = tf.matmul(queries,time_input_w, name ='1') # queries batch_size, t_q, type_emb_size -> batch_size, t_q , num_units
+            time_query_key = tf.matmul(time_query_key,keys, transpose_b=True ,name ='2') #  batch_size, t_q, t_k
             #time_query_key = tf.nn.tanh(time_query_key+time_input_b)
             time_query_key = tf.nn.tanh(time_query_key)
             #time_query_key = tf.layers.dropout(time_query_key, rate=dropout_rate, training=tf.convert_to_tensor(is_training))

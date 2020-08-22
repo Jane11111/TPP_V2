@@ -16,7 +16,7 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import AttentionTPP_MLT,AttentionTPP
+from Model.AttentionTPP import AttentionTPP_MLT,AttentionTPP,MTAM_TPP_W,MTAM_TPP_E
 
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
@@ -89,6 +89,10 @@ class Train_main_process:
                 self.model = AttentionTPP_MLT(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'AttentionTPP':
                 self.model = AttentionTPP(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'MTAM_TPP_W':
+                self.model = MTAM_TPP_W(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'MTAM_TPP_E':
+                self.model = MTAM_TPP_E(self.FLAGS, self.emb, self.sess)
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 
@@ -135,10 +139,11 @@ class Train_main_process:
 
                     self.global_step += 1
 
-                    step_loss, merge = self.model.train(self.sess, train_batch_data, learning_rate)
+                    step_loss, l2_norm, merge = self.model.train(self.sess, train_batch_data, learning_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
 
                     avg_loss += step_loss
+                    print("step_loss: %.5f, l2_norm: %.5f"%(step_loss,l2_norm))
 
 
                     if self.global_step % self.FLAGS.display_freq == 0:
