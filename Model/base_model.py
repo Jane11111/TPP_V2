@@ -158,7 +158,10 @@ class base_model(object):
             # self.loss = tf.reduce_mean(pairwise_loss)
 
             # 自定义loss
-            log_probs = tf.nn.log_softmax(self.lambda_prob)
+            type_lookup_table_T = tf.transpose(self.embedding.type_emb_lookup_table)
+            logits = tf.matmul(self.predict_behavior_emb, type_lookup_table_T)
+            self.lambda_prob =logits
+            log_probs = tf.nn.log_softmax(logits)
 
             self.loss_origin = -tf.reduce_sum(log_probs * self.labels, axis=[-1])
             self.loss = regulation_rate * self.l2_norm + tf.reduce_mean(self.loss_origin)

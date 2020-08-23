@@ -14,15 +14,36 @@ class DataLoader():
         self.user_count = 1
         self.item_count = 1
         self.category_count = 5
+    def pro_time_method(self, time_stamp_seq, mask_time):
+        timelast_list = [time_stamp_seq[i+1]-time_stamp_seq[i] for i in range(0,len(time_stamp_seq)-1,1)]
+        timelast_list.insert(0,0)
+        timenow_list = [mask_time-time_stamp_seq[i] for i in range(0,len(time_stamp_seq),1)]
+
+        return [timelast_list,timenow_list]
 
     def load_data(self,file_path):
         data_set = []
+        count =0
 
         with open(file_path , 'r') as f:
             l = f.readline()
             while l:
-                data_set.append(tuple(eval(l)))
+                #if count>10000:
+                    #break
+                tmp = eval(l)
+                if tmp[4]  < 2:
+                    l = f.readline()
+                    continue
+                tmp.append(self.pro_time_method(tmp[1],tmp[3]))
+                sim_time_list = []
+                for t in tmp[5]:
+                    sim_time_list.append(self.pro_time_method(tmp[1],t))
+
+                tmp.append(sim_time_list)
+
+                data_set.append(tmp)
                 l = f.readline()
+                count = count+1
 
         return data_set
 

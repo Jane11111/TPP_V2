@@ -67,7 +67,7 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_string('model_name', "MTAM_TPP_E", 'experiment date type, e.g. istsbp, pistrec')
+        self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'experiment date type, e.g. istsbp, pistrec')
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
@@ -103,9 +103,8 @@ class model_parameter:
             self.flags.FLAGS.max_seq_len = 100
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_hawkes/"
-
+            self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
         elif type == 'hawkesinhib':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100

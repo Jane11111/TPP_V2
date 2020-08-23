@@ -66,14 +66,14 @@ class GRU():
 
         return outputs
 
-    def time_aware_gru_net(self, hidden_units, input_data, input_length,type):
+    def time_aware_gru_net(self, hidden_units, input_data, input_length,type,scope='gru'):
         if type =='T-SeqRec':
             cell = self.build_time_aware_gru_cell_sigmoid(hidden_units)
         elif type == 'new':
             cell = self.build_time_aware_gru_cell_new(hidden_units)
         #cell = self.build_cell(hidden_units)
         self.input_length = tf.reshape(input_length, [-1])
-        outputs, _ = dynamic_rnn(cell, inputs=input_data, sequence_length=self.input_length, dtype=tf.float32)
+        outputs, _ = dynamic_rnn(cell, inputs=input_data, sequence_length=self.input_length, dtype=tf.float32,scope= scope)
         return outputs
 
     def build_time_aware_gru_cell_sigmoid(self, hidden_units):

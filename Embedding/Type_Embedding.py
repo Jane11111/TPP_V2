@@ -33,6 +33,13 @@ class Type_embedding(Base_embedding):
             # self.sims_len = tf.placeholder(tf.int32, [None,], name = 'sims_len')
             # 当前sequence采样的时间lst 已补齐
             self.sims_time_lst = tf.placeholder(tf.float32, [None, None], name= 'sims_time_lst')
+            self.target_time_last_lst = tf.placeholder(tf.float32, [None,None], name = 'target_time_last_lst')
+            self.target_time_now_lst = tf.placeholder(tf.float32, [None, None], name='target_time_now_lst')
+            self.sim_time_last_lst = tf.placeholder(tf.float32, [None,None, None], name='sim_time_last_lst')
+            self.sim_time_now_lst = tf.placeholder(tf.float32, [None,None, None], name='sim_time_now_lst')
+
+
+
 
     def get_type_embedding(self,type_lst):
         """
@@ -66,10 +73,13 @@ class Type_embedding(Base_embedding):
                self.target_type,\
                self.target_time,\
                self.seq_len,\
-               self.sims_time_lst
+               self.sims_time_lst,\
+               self.target_time_last_lst,\
+               self.target_time_now_lst,\
+               self.sim_time_last_lst,\
+               self.sim_time_now_lst
 
     def make_feed_dic(self, batch_data):
-
         feed_dic = {}
         type_lst = []
         time_lst = []
@@ -77,6 +87,11 @@ class Type_embedding(Base_embedding):
         target_time = []
         seq_len = []
         sims_time_lst = []
+        target_time_last_lst =[]
+        target_time_now_lst = []
+        sim_time_last_lst = []
+        sim_time_now_lst =[]
+
 
         for example in batch_data:
             padding_size = [0,self.max_seq_len - example[4]]
@@ -88,12 +103,26 @@ class Type_embedding(Base_embedding):
             target_time.append(example[3])
             seq_len.append(example[4])
             sims_time_lst.append(example[5])
+            target_time_last_lst.append(np.pad(example[6][0],padding_size,'constant'))
+            target_time_now_lst.append(np.pad(example[6][1],padding_size,'constant'))
+            tmp_sim_last = []
+            tmp_sim_now = []
+            for sims_time_last_now_list in example[7]:
+                tmp_sim_last.append(np.pad(sims_time_last_now_list[0], padding_size, 'constant'))
+                tmp_sim_now.append(np.pad(sims_time_last_now_list[1], padding_size, 'constant'))
+
+            sim_time_last_lst.append(tmp_sim_last)
+            sim_time_now_lst.append(tmp_sim_now)
         feed_dic[self.type_lst] = np.array(type_lst)
         feed_dic[self.time_lst] = np.array(time_lst)
         feed_dic[self.target_type] = np.array(target_type)
         feed_dic[self.target_time] = np.array(target_time)
         feed_dic[self.seq_len] = np.array(seq_len)
         feed_dic[self.sims_time_lst] = np.array(sims_time_lst)
+        feed_dic[self.target_time_last_lst]=np.array(target_time_last_lst)
+        feed_dic[self.target_time_now_lst]=np.array(target_time_now_lst)
+        feed_dic[self.sim_time_last_lst]=np.array(sim_time_last_lst)
+        feed_dic[self.sim_time_now_lst] = np.array(sim_time_now_lst)
 
 
         return feed_dic

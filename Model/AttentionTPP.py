@@ -35,7 +35,11 @@ class AttentionTPP_model(base_model):
         self.target_type,\
         self.target_time, \
         self.seq_len, \
-        self.sims_time_lst = self.embedding.get_embedding(self.type_emb_size)
+        self.sims_time_lst,\
+        self.target_time_last_lst,\
+        self.target_time_now_lst, \
+        self.sim_time_last_lst, \
+        self.sim_time_now_lst = self.embedding.get_embedding(self.type_emb_size)
         self.mask_index = tf.reshape(self.seq_len - 1, [-1, 1])
 
         self.build_model()
@@ -81,7 +85,7 @@ class MTAM_TPP_E(AttentionTPP_model):
             #sequence_len s是有效长度，不应该再减1
             self.short_term_intent_temp = self.gru_net_ins.time_aware_gru_net(hidden_units=self.num_units,
                                                                               input_data=time_aware_gru_net_input,
-                                                                              # input_length=tf.add(self.seq_len, -1),
+                                                                              #input_length=tf.add(self.seq_len, -1),
                                                                               input_length=self.seq_len, # TODO 是否需要-1
                                                                               type='new')
             # TODO mask_index实现 这个函数是干嘛的
@@ -91,7 +95,7 @@ class MTAM_TPP_E(AttentionTPP_model):
                                                seq_length=self.max_seq_len,
                                                width=self.num_units,
                                                sequence_tensor=self.short_term_intent_temp,
-                                               positions=self.mask_index ) # TODO 感觉这里 应该是把最后一个取出来，而不是mask_index-1
+                                               positions=self.mask_index) # TODO 感觉这里 应该是把最后一个取出来，而不是mask_index-1
             # short_term_intent (batch_size, num_units)
 
             short_term_intent4vallina = tf.expand_dims(short_term_intent, 1) # batch_size, 1, num_units
@@ -124,6 +128,7 @@ class MTAM_TPP_E(AttentionTPP_model):
     def build_model(self):
 
 
+
         with tf.variable_scope('intensity_calculation',reuse=tf.AUTO_REUSE):
             intensity_fun = e_intensity(W = self.embedding.type_emb_lookup_table,
                                         type_num = self.type_num)
@@ -148,6 +153,61 @@ class MTAM_TPP_E(AttentionTPP_model):
 
 
 
+        self.output()
+
+
+class MTAM_TPP_wendy(AttentionTPP_model):
+
+    def calculate_lambda (self,target_time,time_last,time_now):
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+            time_aware_gru_net_input = tf.concat([self.type_lst_embedding,  # TODO 为什么要加这个？
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_aware_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=self.seq_len,  # TODO 是否需要-1
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=self.now_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions=self.mask_index)  # TODO 感觉这里 应该是把最后一个取出来，而不是mask_index-1
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+        with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
+            predict_emb = self.time_aware_attention.vanilla_attention(enc=self.type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length=self.seq_len,
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 t_querys=tf.expand_dims(target_time,1),
+                                                                 t_keys=self.time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1
+                                                                 )
+
+
+        return layer_norm(predict_emb)
+
+
+    def build_model(self):
+        self.time_aware_attention = Time_Aware_Attention()
+        self.gru_net_ins = GRU()
+        predict_target_lambda_emb  = self.calculate_lambda(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
+        predict_sim_lambda_emb =[]
+        sims_time = tf.squeeze(tf.split(self.sims_time_lst,self.sims_len,1),1)
+        sims_time_last = tf.squeeze(tf.split(self.sim_time_last_lst,self.sims_len,1),1)
+        sims_time_now = tf.squeeze(tf.split(self.sim_time_now_lst, self.sims_len, 1),1)
+        for i in range(self.sims_len):
+            predict_sim_lambda_emb.append(self.calculate_lambda(sims_time[i],sims_time_last[i],sims_time_now[i]))
+        self.predict_behavior_emb = predict_target_lambda_emb
         self.output()
 
 
@@ -331,7 +391,7 @@ class AttentionTPP_MLT(AttentionTPP_model):
                                                                t_querys=target_sims_time,
                                                                t_keys = time_lst,
                                                                t_keys_length=self.max_seq_len,
-                                                               t_querys_length = self.sims_len + 1)
+                                                                   t_querys_length = self.sims_len + 1)
             predict_emb = layer_norm(next_emb)
         # predict_emb = tf.reshape(next_emb,[-1,self.sims_len + 1, self.num_units]) # batch_size, 1+sims_len, num_units
         return predict_emb
@@ -348,8 +408,6 @@ class AttentionTPP_MLT(AttentionTPP_model):
 
             target_demo = tf.reshape(self.seq_len,[-1,1]) # batch_size, 1
             sims_demo = tf.reshape(tf.tile(self.seq_len, [self.sims_len]) ,[-1,self.sims_len,1])# batch_size , sims_len,1
-
-
             predict_target_intensity = tf.zeros_like(target_demo, dtype = tf.float32) # batch_size, 1
             predict_sims_intensity = tf.zeros_like(sims_demo, dtype = tf.float32) # batch_size, sims_len , 1
             predict_sims_intensity = tf.reshape(predict_sims_intensity,[-1,1])
