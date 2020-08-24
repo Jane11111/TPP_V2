@@ -24,6 +24,7 @@ class DataLoader():
     def load_data(self,file_path):
         data_set = []
         count =0
+        max_type = 0
 
         with open(file_path , 'r') as f:
             l = f.readline()
@@ -31,6 +32,7 @@ class DataLoader():
                 #if count>10000:
                     #break
                 tmp = eval(l)
+                max_type = max( max_type,np.max(tmp[0]))
                 if tmp[4]  < 2:
                     l = f.readline()
                     continue
@@ -44,7 +46,7 @@ class DataLoader():
                 data_set.append(tmp)
                 l = f.readline()
                 count = count+1
-
+        print("max type: %d"%max_type)
         return data_set
 
     def load_train_test(self):
@@ -108,20 +110,19 @@ class DataLoader():
 
         sims_len = self.FLAGS.sims_len
 
-
         # TODO 为什么序列至少需要两个event？？？？？
         for i in range(len(complete_time_lst)):
             target_type = complete_type_lst[i]
             target_time = complete_time_lst[i]
 
             if i == 0: #TODO  使用历史生成h，接着把target与h通过全连接网络
-                seq_len = 2
-                type_lst = [0,0]
-                time_lst = [0,0]
-            elif i == 1:
-                seq_len = 2
-                type_lst = [ 0,complete_type_lst[0]]
-                time_lst = [ 0,complete_time_lst[0]]
+                seq_len = 1
+                type_lst = [0]
+                time_lst = [0]
+            # elif i == 1:
+            #     seq_len = 2
+            #     type_lst = [ 0,complete_type_lst[0]]
+            #     time_lst = [ 0,complete_time_lst[0]]
 
             else:
                 seq_len = min(i,self.FLAGS.max_seq_len)

@@ -20,7 +20,7 @@ class model_parameter:
 
         # 随机梯度下降sgd
         self.flags.DEFINE_string('optimizer', 'adam', 'Optimizer for training: (adadelta, adam, rmsprop,sgd*)')
-        self.flags.DEFINE_float('learning_rate', 0.0001, 'Learning rate')
+        self.flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
         self.flags.DEFINE_float('decay_rate', 0.001, 'decay rate')
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
@@ -74,8 +74,8 @@ class model_parameter:
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
-        self.flags.DEFINE_string('data_name','twitter_retweet','the type of the dataset')
+        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_string('data_name','mimic_fold5','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
@@ -91,7 +91,7 @@ class model_parameter:
         elif type == 'twitter_retweet':
             self.flags.FLAGS.type_num = 3
             # self.flags.FLAGS.max_length_seq = 264
-            self.flags.FLAGS.max_seq_len = 264
+            self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_retweet/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_retweet/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
@@ -103,8 +103,8 @@ class model_parameter:
             self.flags.FLAGS.max_seq_len = 100
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_hawkes/"
         elif type == 'hawkesinhib':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
@@ -122,6 +122,46 @@ class model_parameter:
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_conttime/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_conttime/"
+        elif type == 'mimic_fold1':
+            self.flags.FLAGS.type_num = 85
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold1/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold1/"
+        elif type == 'mimic_fold2':
+            self.flags.FLAGS.type_num = 85
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold2/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold2/"
+        elif type == 'mimic_fold3':
+            self.flags.FLAGS.type_num = 85
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold3/"
+        elif type == 'mimic_fold4':
+            self.flags.FLAGS.type_num = 85
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold4/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold4/"
+        elif type == 'mimic_fold5':
+            self.flags.FLAGS.type_num = 85
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 50
+            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
+            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold5/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold5/"
 
         return  self.flags
 
