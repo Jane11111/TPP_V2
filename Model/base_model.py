@@ -158,9 +158,16 @@ class base_model(object):
             self.type_likelihood_loss = (log_target_type_lambda - log_sum_lambda) # batch_size,
             self.time_likelohood_loss = self.log_likelihood_loss - self.type_likelihood_loss
 
-            # self.loss =   - tf.reduce_mean(self.log_likelihood_loss)
-            # self.loss =  tf.reduce_mean(self.cross_entropy_loss)
-            self.loss =  - tf.reduce_mean(self.log_likelihood_loss) + tf.reduce_mean(self.cross_entropy_loss)
+
+            if self.FLAGS.loss == 'cross_entropy':
+                self.loss = tf.reduce_mean(self.cross_entropy_loss)
+            elif self.FLAGS.loss == 'log_likelihood':
+                self.loss =   - tf.reduce_mean(self.log_likelihood_loss)
+            elif self.FLAGS.loss == 'llh_ce':
+                self.loss =  - tf.reduce_mean(self.log_likelihood_loss) + tf.reduce_mean(self.cross_entropy_loss)
+
+
+
             # for metrics
             self.predict_type_prob = logits[:, :self.FLAGS.type_num]
             self.labels = one_hot_type[:,:self.FLAGS.type_num]
@@ -169,7 +176,9 @@ class base_model(object):
             tf.summary.scalar('l2_norm', self.l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
             tf.summary.scalar('loss', self.loss)
-            tf.summary.scalar('log_likelihood_loss', tf.reduce_mean(self.log_likelihood_loss))
+            tf.summary.scalar('seq_log_likelihood_loss', tf.reduce_mean(self.log_likelihood_loss))
+            tf.summary.scalar('time_log_likelihood_loss', tf.reduce_mean(self.time_likelohood_loss))
+            tf.summary.scalar('type_log_likelihood_loss', tf.reduce_mean(self.type_likelihood_loss))
             tf.summary.scalar('cross_entropy_loss', tf.reduce_mean(self.cross_entropy_loss))
             # tf.summary.scalar('cross entropy loss', self.cross_entropy_loss)
         self.cal_gradient(tf.trainable_variables())

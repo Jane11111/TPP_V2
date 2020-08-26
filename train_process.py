@@ -189,25 +189,29 @@ class Train_main_process:
                         sum_time_llh = 0.0
                         sum_type_llh = 0.0
 
-                    if self.global_step % self.FLAGS.eval_freq == 0:
-                        auc, f1, recall, precision, accuracy,avg_llh,avg_time_llh,avg_type_llh,avg_ce = eval_model()
-                        self.logger.info("auc: %.5f" % (auc))
-                        self.logger.info("f1: %.5f" % (f1))
-                        self.logger.info("recall: %.5f" % (recall))
-                        self.logger.info("precision: %.5f" % (precision))
-                        self.logger.info("accuracy: %.5f" % (accuracy))
-                        self.logger.info("log likelihood: %.5f"%(avg_llh))
-                        self.logger.info("time likelihood: %.5f"%(avg_time_llh))
-                        self.logger.info("type likelihood: %.5f"%(avg_type_llh))
-                        self.logger.info("cross entroyp: %.5f"%(avg_llh))
+                    # if self.global_step % self.FLAGS.eval_freq == 0:
+                    #     auc, f1, recall, precision, accuracy,avg_llh,avg_time_llh,avg_type_llh,avg_ce = eval_model()
+                    #     self.logger.info("auc: %.5f" % (auc))
+                    #     self.logger.info("f1: %.5f" % (f1))
+                    #     self.logger.info("recall: %.5f" % (recall))
+                    #     self.logger.info("precision: %.5f" % (precision))
+                    #     self.logger.info("accuracy: %.5f" % (accuracy))
+                    #     self.logger.info("log likelihood: %.5f"%(avg_llh))
+                    #     self.logger.info("time likelihood: %.5f"%(avg_time_llh))
+                    #     self.logger.info("type likelihood: %.5f"%(avg_type_llh))
+                    #     self.logger.info("cross entroyp: %.5f"%(avg_llh))
 
-                # self.logger.info("epoch : %d"%(epoch))
-                # auc, f1, recall, precision, accuracy = eval_model()
-                # self.logger.info("auc: %.2f" % (auc))
-                # self.logger.info("f1: %.2f" % (f1))
-                # self.logger.info("recall: %.2f" % (recall))
-                # self.logger.info("precision: %.2f" % (precision))
-                # self.logger.info("accuracy: %.2f" % (accuracy))
+                self.logger.info("epoch : %d"%(epoch))
+                auc, f1, recall, precision, accuracy, avg_llh, avg_time_llh, avg_type_llh, avg_ce = eval_model()
+                self.logger.info("auc: %.5f" % (auc))
+                self.logger.info("f1: %.5f" % (f1))
+                self.logger.info("recall: %.5f" % (recall))
+                self.logger.info("precision: %.5f" % (precision))
+                self.logger.info("accuracy: %.5f" % (accuracy))
+                self.logger.info("log likelihood: %.5f" % (avg_llh))
+                self.logger.info("time likelihood: %.5f" % (avg_time_llh))
+                self.logger.info("type likelihood: %.5f" % (avg_type_llh))
+                self.logger.info("cross entroyp: %.5f" % (avg_llh))
 
                 self.logger.info('one epoch Cost time: %.2f' % (time.time() - epoch_start_time))
 

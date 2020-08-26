@@ -52,8 +52,8 @@ class AttentionTPP_model(base_model):
 """
 
 class MTAM_only_time_aware_RNN(AttentionTPP_model,):
-    def get_emb(self,target_time,timelast_lst,timenow_lst):
-        with tf.variable_scope('short_term_intent_encoder'):
+    def get_emb(self,timelast_lst,timenow_lst):
+        with tf.variable_scope('short_term_intent_encoder', reuse=tf.AUTO_REUSE):
             self.time_aware_gru_net_input = tf.concat([self.type_lst_embedding,
                                                        tf.expand_dims(timelast_lst,2),
                                                        tf.expand_dims(timenow_lst,2)],2)
@@ -73,15 +73,31 @@ class MTAM_only_time_aware_RNN(AttentionTPP_model,):
     def build_model(self):
 
         self.gru_net_ins = GRU()
-        predict_target_lambda_emb = self.get_emb(self.target_time, self.target_time_last_lst,
-                                                          self.target_time_now_lst)
+        predict_target_lambda_emb = self.get_emb( self.target_time_last_lst, self.target_time_now_lst)
+        predict_target_lambda_emb = tf.reshape(predict_target_lambda_emb, [self.now_batch_size, self.num_units])
 
+        # sims_time_lst: batch_size, sims_len
+        predict_sims_emb = tf.zeros([self.now_batch_size, 1])
 
-        self.predict_behavior_emb = predict_target_lambda_emb
+        sims_time = tf.squeeze(tf.split(self.sims_time_lst, self.sims_len, 1), 2)
+        sims_time_last = tf.squeeze(tf.split(self.sim_time_last_lst, self.sims_len, 1), 2)
+        sims_time_now = tf.squeeze(tf.split(self.sim_time_now_lst, self.sims_len, 1), 2)
+        for i in range(self.sims_len):
+            # 第i个时间 batch_size, num_units
+            cur_sims_emb = self.get_emb( sims_time_last[i], sims_time_now[i])
+            cur_sims_emb = tf.reshape(cur_sims_emb, [self.now_batch_size, self.num_units])
+            predict_sims_emb = tf.concat([predict_sims_emb, cur_sims_emb], axis=1)
+
+        predict_sims_emb = predict_sims_emb[:, 1:]  # batch_size, sims_len * num_units
+        predict_sims_emb = tf.reshape(predict_sims_emb,
+                                      [-1, self.sims_len, self.num_units])  # batch_size, sims_len , num_units
+
+        self.predict_target_emb = predict_target_lambda_emb  # sim_len, batch_size, num_units
+        self.predict_sims_emb = predict_sims_emb
         self.output()
 class Vallina_Gru(AttentionTPP_model,):
     def get_emb(self):
-        with tf.variable_scope('short_term_intent_encoder'):
+        with tf.variable_scope('short_term_intent_encoder',reuse=tf.AUTO_REUSE):
 
             self.short_term_intent_temp = self.gru_net_ins.gru_net(hidden_units = self.num_units,
                                                                   input_data=self.type_lst_embedding,
@@ -98,10 +114,27 @@ class Vallina_Gru(AttentionTPP_model,):
     def build_model(self):
 
         self.gru_net_ins = GRU()
-        predict_target_lambda_emb = self.get_emb()
+        predict_target_lambda_emb = self.get_emb( )
+        predict_target_lambda_emb = tf.reshape(predict_target_lambda_emb, [self.now_batch_size, self.num_units])
 
+        # sims_time_lst: batch_size, sims_len
+        predict_sims_emb = tf.zeros([self.now_batch_size, 1])
 
-        self.predict_behavior_emb = predict_target_lambda_emb
+        sims_time = tf.squeeze(tf.split(self.sims_time_lst, self.sims_len, 1), 2)
+        sims_time_last = tf.squeeze(tf.split(self.sim_time_last_lst, self.sims_len, 1), 2)
+        sims_time_now = tf.squeeze(tf.split(self.sim_time_now_lst, self.sims_len, 1), 2)
+        for i in range(self.sims_len):
+            # 第i个时间 batch_size, num_units
+            cur_sims_emb = self.get_emb( )
+            cur_sims_emb = tf.reshape(cur_sims_emb, [self.now_batch_size, self.num_units])
+            predict_sims_emb = tf.concat([predict_sims_emb, cur_sims_emb], axis=1)
+
+        predict_sims_emb = predict_sims_emb[:, 1:]  # batch_size, sims_len * num_units
+        predict_sims_emb = tf.reshape(predict_sims_emb,
+                                      [-1, self.sims_len, self.num_units])  # batch_size, sims_len , num_units
+
+        self.predict_target_emb = predict_target_lambda_emb  # sim_len, batch_size, num_units
+        self.predict_sims_emb = predict_sims_emb
         self.output()
 
 
@@ -214,7 +247,7 @@ class MTAM_TPP_E(AttentionTPP_model):
 
 class MTAM_TPP_wendy(AttentionTPP_model):
 
-    def calculate_lambda (self,target_time,time_last,time_now):
+    def get_emb (self,target_time,time_last,time_now):
         with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
             time_aware_gru_net_input = tf.concat([self.type_lst_embedding,  # TODO 为什么要加这个？
                                               tf.expand_dims(time_last, 2),
@@ -256,7 +289,7 @@ class MTAM_TPP_wendy(AttentionTPP_model):
     def build_model(self):
         self.time_aware_attention = Time_Aware_Attention()
         self.gru_net_ins = GRU()
-        predict_target_lambda_emb  = self.calculate_lambda(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
+        predict_target_lambda_emb  = self.get_emb(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
         predict_target_lambda_emb = tf.reshape(predict_target_lambda_emb,[self.now_batch_size,self.num_units])
 
         # sims_time_lst: batch_size, sims_len
@@ -267,7 +300,7 @@ class MTAM_TPP_wendy(AttentionTPP_model):
         sims_time_now = tf.squeeze(tf.split(self.sim_time_now_lst, self.sims_len, 1),2)
         for i in range(self.sims_len):
             #第i个时间 batch_size, num_units
-            cur_sims_emb = self.calculate_lambda(sims_time[i],sims_time_last[i],sims_time_now[i])
+            cur_sims_emb = self.get_emb(sims_time[i],sims_time_last[i],sims_time_now[i])
             cur_sims_emb = tf.reshape(cur_sims_emb, [self.now_batch_size,self.num_units])
             predict_sims_emb = tf.concat([predict_sims_emb,cur_sims_emb],axis = 1)
 

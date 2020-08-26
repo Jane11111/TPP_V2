@@ -67,8 +67,15 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
+        self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
-        self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'model name')
+        # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'model name')
+
+        # loss function
+        # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
+        self.flags.DEFINE_string('loss', 'llh_ce', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
+
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
@@ -79,6 +86,7 @@ class model_parameter:
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
+
 
     def get_parameter(self,type):
 
