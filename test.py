@@ -9,16 +9,13 @@ from sklearn.metrics import roc_auc_score,f1_score,recall_score,precision_score,
 from Model.Modules.net_utils import gather_indexes
 
 
-type_num = 3
-target = [1,1,2,0]
-label_ids = tf.reshape(target, [-1])
-one_hot_labels = tf.one_hot(
-    label_ids, depth=type_num, dtype=tf.float32)
-
+tensor = tf.constant([[1,1,1],
+                      [2,2,2]])
+res =tf.reduce_sum(tensor,axis = 1)
 with tf.Session() as sess:
-    print(sess.run(label_ids))
+    print(sess.run(res))
+
     print('---------------')
-    print(sess.run(one_hot_labels))
 
     # print(sess.run(result))
 

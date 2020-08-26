@@ -16,7 +16,8 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, MTAM_TPP_wendy
+from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, \
+    MTAM_TPP_wendy,MTAM_only_time_aware_RNN,Vallina_Gru
 
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
@@ -95,6 +96,10 @@ class Train_main_process:
                 self.model = MTAM_TPP_E(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy':
                 self.model = MTAM_TPP_wendy(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'MTAM_only_time_aware_RNN':
+                self.model = MTAM_only_time_aware_RNN(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'Vallina_Gru':
+                self.model = Vallina_Gru(self.FLAGS, self.emb, self.sess)
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 
@@ -104,11 +109,21 @@ class Train_main_process:
                 total_event_num = len(self.test_set)
                 type_prob =  []
                 target_type = [] # one_hot 形式的
+                log_likelihode = []
+                time_llh = []
+                type_llh = []
+                cross_entropy = []
                 for step_i, batch_data in DataInput(self.test_set,self.FLAGS.test_batch_size):
-                    step_type_prob, step_target_type = self.model.metrics_likelihood(sess = self.sess,
+                    step_type_prob, step_target_type,\
+                    step_log_likelihode,step_time_llh,step_type_llh,\
+                    step_cross_entropy = self.model.metrics_likelihood(sess = self.sess,
                                                                        batch_data = batch_data)
                     type_prob.extend(step_type_prob)
                     target_type.extend(step_target_type)
+                    log_likelihode.extend(step_log_likelihode)
+                    time_llh.extend(step_time_llh)
+                    type_llh.extend(step_type_llh)
+                    cross_entropy.extend(step_cross_entropy)
 
                 predict_type = []
                 for prob_arr in type_prob:
@@ -123,8 +138,12 @@ class Train_main_process:
                 recall = recall_score(target_type,predict_type,average='micro')
                 precision = precision_score(target_type,predict_type,average='micro')
                 accuracy = accuracy_score(target_type, predict_type, )
+                avg_log_likelihood = np.mean(log_likelihode)
+                avg_time_llh = np.mean(time_llh)
+                avg_type_llh = np.mean(type_llh)
+                avg_cross_entropy = np.mean(cross_entropy)
 
-                return auc, f1, recall, precision, accuracy
+                return auc, f1, recall, precision, accuracy,avg_log_likelihood,avg_time_llh, avg_type_llh,avg_cross_entropy
 
 
             self.logger.info('learning rate: %f'%(self.FLAGS.learning_rate))
@@ -132,43 +151,65 @@ class Train_main_process:
 
             self.global_step = 0
             avg_loss = 0.0
+            sum_loglikelihode_loss = 0.0
+            sum_time_llh = 0.0
+            sum_type_llh = 0.0
+            sum_cross_entropy_loss = 0.0
+            count = 0
             learning_rate = self.FLAGS.learning_rate
 
             for epoch in range(self.FLAGS.max_epochs):
+                epoch_start_time = time.time()
 
                 random.shuffle(self.train_set)
                 for step_i,train_batch_data in DataInput(self.train_set, self.FLAGS.train_batch_size):
 
                     self.global_step += 1
 
-                    step_loss, l2_norm, merge = self.model.train(self.sess, train_batch_data, learning_rate)
+                    step_loss, log_likelihode_loss,time_llh,type_llh,cross_entropy_loss,l2_norm, merge, _ = self.model.train(self.sess, train_batch_data, learning_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
 
                     avg_loss += step_loss
+                    count+=len(log_likelihode_loss)
+                    sum_loglikelihode_loss+=np.sum(log_likelihode_loss)
+                    sum_time_llh += np.sum(time_llh)
+                    sum_type_llh += np.sum(type_llh)
+                    sum_cross_entropy_loss+=np.sum(cross_entropy_loss)
                     #print("step_loss: %.5f, l2_norm: %.5f"%(step_loss,l2_norm))
 
+                    # print(target_lambda)
 
                     if self.global_step % self.FLAGS.display_freq == 0:
-                        self.logger.info("epoch: %d, step: %d, global_step: %d, train_loss :%.2f"
-                                         %(epoch, step_i, self.global_step,avg_loss/ self.FLAGS.display_freq))
+                        self.logger.info("epoch: %d, step: %d, global_step: %d, train_loss :%.5f, seq llh :%.5f,time_llh: %.5f, type_llh:%.5f,cross_entropy: %.5f"
+                                         %(epoch, step_i, self.global_step,avg_loss/ self.FLAGS.display_freq,
+                                           sum_loglikelihode_loss/count, sum_time_llh/count,sum_type_llh/count,
+                        sum_cross_entropy_loss/count))
                         avg_loss = 0.0
+                        sum_loglikelihode_loss = 0.0
+                        sum_time_llh = 0.0
+                        sum_type_llh = 0.0
 
                     if self.global_step % self.FLAGS.eval_freq == 0:
-                        auc, f1, recall, precision, accuracy = eval_model()
-                        self.logger.info("auc: %.2f" % (auc))
-                        self.logger.info("f1: %.2f" % (f1))
-                        self.logger.info("recall: %.2f" % (recall))
-                        self.logger.info("precision: %.2f" % (precision))
-                        self.logger.info("accuracy: %.2f" % (accuracy))
+                        auc, f1, recall, precision, accuracy,avg_llh,avg_time_llh,avg_type_llh,avg_ce = eval_model()
+                        self.logger.info("auc: %.5f" % (auc))
+                        self.logger.info("f1: %.5f" % (f1))
+                        self.logger.info("recall: %.5f" % (recall))
+                        self.logger.info("precision: %.5f" % (precision))
+                        self.logger.info("accuracy: %.5f" % (accuracy))
+                        self.logger.info("log likelihood: %.5f"%(avg_llh))
+                        self.logger.info("time likelihood: %.5f"%(avg_time_llh))
+                        self.logger.info("type likelihood: %.5f"%(avg_type_llh))
+                        self.logger.info("cross entroyp: %.5f"%(avg_llh))
 
-                self.logger.info("epoch : %d"%(epoch))
-                auc, f1, recall, precision, accuracy = eval_model()
-                self.logger.info("auc: %.2f" % (auc))
-                self.logger.info("f1: %.2f" % (f1))
-                self.logger.info("recall: %.2f" % (recall))
-                self.logger.info("precision: %.2f" % (precision))
-                self.logger.info("accuracy: %.2f" % (accuracy))
+                # self.logger.info("epoch : %d"%(epoch))
+                # auc, f1, recall, precision, accuracy = eval_model()
+                # self.logger.info("auc: %.2f" % (auc))
+                # self.logger.info("f1: %.2f" % (f1))
+                # self.logger.info("recall: %.2f" % (recall))
+                # self.logger.info("precision: %.2f" % (precision))
+                # self.logger.info("accuracy: %.2f" % (accuracy))
 
+                self.logger.info('one epoch Cost time: %.2f' % (time.time() - epoch_start_time))
 
             self.save_model()
 

@@ -38,7 +38,7 @@ class DataLoader():
                     continue
                 tmp.append(self.pro_time_method(tmp[1],tmp[3]))
                 sim_time_list = []
-                for t in tmp[5]:
+                for t in tmp[6]:
                     sim_time_list.append(self.pro_time_method(tmp[1],t))
 
                 tmp.append(sim_time_list)
@@ -116,24 +116,24 @@ class DataLoader():
             target_time = complete_time_lst[i]
 
             if i == 0: #TODO  使用历史生成h，接着把target与h通过全连接网络
-                seq_len = 1
                 type_lst = [0]
                 time_lst = [0]
-            # elif i == 1:
-            #     seq_len = 2
-            #     type_lst = [ 0,complete_type_lst[0]]
-            #     time_lst = [ 0,complete_time_lst[0]]
+
 
             else:
-                seq_len = min(i,self.FLAGS.max_seq_len)
-                start_idx = max(0, i-seq_len)
+                history_len = min(i,self.FLAGS.max_seq_len-1)
+                start_idx = max(0, i-history_len)
                 end_idx = i
                 type_lst = complete_type_lst[start_idx:end_idx]
                 time_lst = complete_time_lst[start_idx:end_idx]
-            sims_time_lst = list(np.random.uniform(time_lst[-1],target_time, sims_len))
+
+            type_lst.append(self.FLAGS.type_num) # 最后一个是mask
+            time_lst.append(target_time) # 补齐
+
+            sims_time_lst = list(np.random.uniform(time_lst[-2],target_time, sims_len))
             res.append([type_lst, time_lst,
-                        target_type, target_time, seq_len, sims_time_lst])
-            # res.append(sample_time_list)
+                        target_type, target_time, len(time_lst), target_time-time_lst[-1],sims_time_lst])
+
         return res
 
 

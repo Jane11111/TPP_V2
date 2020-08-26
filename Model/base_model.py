@@ -83,7 +83,7 @@ class base_model(object):
         input_dic[self.learning_rate] = learning_rate
         input_dic[self.now_batch_size] = len(batch_data)
 
-        output_feed = [self.loss, self.l2_norm,self.merged]
+        output_feed = [self.loss, self.log_likelihood_loss,self.time_likelohood_loss,self.type_likelihood_loss,self.cross_entropy_loss,self.l2_norm,self.merged,self.train_op]
 
         outputs = sess.run(output_feed, input_dic)
 
@@ -91,7 +91,8 @@ class base_model(object):
 
     def metrics_likelihood(self,sess,batch_data):
 
-        output_feed = [tf.nn.softmax(self.lambda_prob),self.labels]
+        output_feed = [tf.nn.softmax(self.predict_type_prob),self.labels,self.log_likelihood_loss,
+                       self.time_likelohood_loss,self.type_likelihood_loss,self.cross_entropy_loss]
         input_dic = self.embedding.make_feed_dic(batch_data = batch_data)
         input_dic[self.now_batch_size] = len(batch_data)
         outputs = sess.run(output_feed,input_dic)
@@ -130,44 +131,45 @@ class base_model(object):
             ])
             regulation_rate = self.FLAGS.regulation_rate
             one_hot_type = tf.one_hot(
-                self.target_type, depth = self.FLAGS.type_num, dtype = tf.float32
+                self.target_type, depth = self.FLAGS.type_num + 3, dtype = tf.float32
             )
-            self.labels = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num])
+            one_hot_type = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num + 3]) # batch_size, type_num + 3
 
+            # type
+            type_lookup_table_T = tf.transpose(self.embedding.type_emb_lookup_table) # num_units, type_num+3
+            logits = tf.matmul(self.predict_target_emb, type_lookup_table_T)
+            log_probs = tf.nn.log_softmax(logits)  # TODO 最后那3个怎么处理
+            self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size
 
+            # target lambda TODO 用relu函数限制lambda为正数
+            target_lambda =  tf.nn.relu(tf.matmul(self.predict_target_emb, type_lookup_table_T ) )# batch_size, type_num+3
+            target_type_lambda = target_lambda * one_hot_type  # batch_size, type_num + 3
+            log_target_type_lambda = tf.log(tf.reduce_sum(target_type_lambda+1e-9, axis=1))  # batch_size,
+            sum_lambda = tf.reduce_sum(target_lambda[:,:-3],axis = 1) # batch_size,
+            log_sum_lambda = tf.log(sum_lambda)
 
-            # 将预测的值换成0、1
-            # one = tf.ones_like(self.lambda_prob)
-            # zero = tf.zeros_like(self.lambda_prob)
-            #
-            # max_lambda = tf.reshape(tf.reduce_max(self.lambda_prob),[-1,1])
-            # resize_lambda = self.lambda_prob/max_lambda
-            # sparse_lambda = tf.where(resize_lambda <1, x = zero, y=one)
+            # sims lambda
+            sims_lambda = tf.nn.relu(tf.matmul(tf.reshape(self.predict_sims_emb,[-1,self.num_units]), type_lookup_table_T)) # batch_size * sims_len, type_num+3
+            sims_lambda = tf.reshape(sims_lambda, [-1,self.sims_len, self.type_num +3]) # batch_size, sims_len, type_num + 3
+            sum_sims_lambda = tf.reduce_sum(tf.reduce_sum(sims_lambda, axis=2),axis=1) # batch_size,
+            integral_sims_lambda = (sum_sims_lambda/tf.to_float(self.FLAGS.sims_len)) * self.T_lst
 
+            self.log_likelihood_loss =  (log_target_type_lambda - integral_sims_lambda) # batch_size
+            self.type_likelihood_loss = (log_target_type_lambda - log_sum_lambda) # batch_size,
+            self.time_likelohood_loss = self.log_likelihood_loss - self.type_likelihood_loss
 
-            # cross entropy loss
-            # cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels = self.labels,
-            #                                                                 logits = self.lambda_prob)
-            #
-            # self.cross_entropy_loss = tf.reduce_mean(cross_entropy_loss)
-            # self.loss = self.cross_entropy_loss
-
-            # pairwise loss
-            # pairwise_loss = tf.losses.mean_pairwise_squared_error(labels = self.labels,
-            #                                                       predictions=tf.nn.softmax(self.lambda_prob))
-            # self.loss = tf.reduce_mean(pairwise_loss)
-
-            # 自定义loss
-            type_lookup_table_T = tf.transpose(self.embedding.type_emb_lookup_table)
-            logits = tf.matmul(self.predict_behavior_emb, type_lookup_table_T)
-            self.lambda_prob =logits
-            log_probs = tf.nn.log_softmax(logits)
-
-            self.loss_origin = -tf.reduce_sum(log_probs * self.labels, axis=[-1])
-            self.loss = regulation_rate * self.l2_norm + tf.reduce_mean(self.loss_origin)
+            # self.loss =   - tf.reduce_mean(self.log_likelihood_loss)
+            # self.loss =  tf.reduce_mean(self.cross_entropy_loss)
+            self.loss =  - tf.reduce_mean(self.log_likelihood_loss) + tf.reduce_mean(self.cross_entropy_loss)
+            # for metrics
+            self.predict_type_prob = logits[:, :self.FLAGS.type_num]
+            self.labels = one_hot_type[:,:self.FLAGS.type_num]
+            self.target_lambda = target_lambda
 
             tf.summary.scalar('l2_norm', self.l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
             tf.summary.scalar('loss', self.loss)
+            tf.summary.scalar('log_likelihood_loss', tf.reduce_mean(self.log_likelihood_loss))
+            tf.summary.scalar('cross_entropy_loss', tf.reduce_mean(self.cross_entropy_loss))
             # tf.summary.scalar('cross entropy loss', self.cross_entropy_loss)
         self.cal_gradient(tf.trainable_variables())
