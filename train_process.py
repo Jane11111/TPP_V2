@@ -10,7 +10,7 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from Embedding.Type_Embedding import Type_embedding
+from Embedding.history_embedding import history_embedding
 from util.model_log import create_log
 from DataHandle.get_input_data import DataInput
 
@@ -18,7 +18,7 @@ from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
 from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, \
     MTAM_TPP_wendy,MTAM_only_time_aware_RNN,Vallina_Gru
-
+from Model.THP import THP
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
 random.seed(1234)
@@ -50,7 +50,7 @@ class Train_main_process:
         self.logger.info("DataHandle Process cost time: %.2fs" %(time.time() - start_time))
         start_time = time.time()
 
-        self.emb = Type_embedding(is_training=self.FLAGS.is_training,
+        self.emb = history_embedding(is_training=self.FLAGS.is_training,
                                   type_num = self.FLAGS.type_num,
                                   max_seq_len = self.FLAGS.max_seq_len,
                                   sims_len = self.FLAGS.sims_len,
@@ -100,6 +100,8 @@ class Train_main_process:
                 self.model = MTAM_only_time_aware_RNN(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'Vallina_Gru':
                 self.model = Vallina_Gru(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'THP':
+                self.model = THP(self.FLAGS, self.emb, self.sess)
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 
@@ -166,9 +168,18 @@ class Train_main_process:
 
                     self.global_step += 1
 
-                    step_loss, log_likelihode_loss,time_llh,type_llh,cross_entropy_loss,l2_norm, merge, _ = self.model.train(self.sess, train_batch_data, learning_rate)
-                    self.model.train_writer.add_summary(merge, self.global_step)
+                    # TODO 没有训练！！！！！！！！！！！！！！！！！！！
 
+                    #target_time,predict_target_emb,last_time,target_lambda,\
+                    # test_output,\
+                    step_loss, log_likelihode_loss,\
+                    time_llh,type_llh,cross_entropy_loss,l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate)
+                    self.model.train_writer.add_summary(merge, self.global_step)
+                    # print(test_output[0]) # target_emb
+                    # print(test_output[1]) # target_time
+                    # print(test_output[2]) # last_time
+                    # print(test_output[3]) # target_lambda
+                    # print('---------------------------------')
                     avg_loss += step_loss
                     count+=len(log_likelihode_loss)
                     sum_loglikelihode_loss+=np.sum(log_likelihode_loss)
@@ -211,7 +222,7 @@ class Train_main_process:
                 self.logger.info("log likelihood: %.5f" % (avg_llh))
                 self.logger.info("time likelihood: %.5f" % (avg_time_llh))
                 self.logger.info("type likelihood: %.5f" % (avg_type_llh))
-                self.logger.info("cross entroyp: %.5f" % (avg_llh))
+                self.logger.info("cross entroyp: %.5f" % (avg_ce))
 
                 self.logger.info('one epoch Cost time: %.2f' % (time.time() - epoch_start_time))
 

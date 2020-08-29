@@ -8,10 +8,10 @@ import tensorflow as tf
 from Embedding.base_embedding import Base_embedding
 
 
-class Type_embedding(Base_embedding):
+class history_embedding(Base_embedding):
 
     def __init__(self,is_training = True, type_num = 0, max_seq_len = 0, sims_len = 0, FLAGS = None):
-        super(Type_embedding, self).__init__(is_training= is_training)
+        super(history_embedding, self).__init__(is_training= is_training)
 
         self.type_num = type_num
         self.max_seq_len = max_seq_len
@@ -67,9 +67,27 @@ class Type_embedding(Base_embedding):
 
         target_type_embedding = tf.nn.embedding_lookup(self.type_emb_lookup_table, self.target_type)
 
+        # time embedding for THP
+        M = num_units
+        single_odd_mask = np.zeros(shape=(M,))
+        single_odd_mask[::2] = 1
+        single_odd_mask = tf.convert_to_tensor(single_odd_mask, dtype=tf.float32)  # M,
+        single_even_mask = np.zeros(shape=(M,))
+        single_even_mask[1::2] = 1
+        single_even_mask = tf.convert_to_tensor(single_even_mask, dtype=tf.float32)
+
+        emb_time_lst = tf.tile(tf.expand_dims(self.time_lst, axis=2), [1, 1, M])  # batch_size, seq_len, M
+
+        single_odd_deno = tf.to_float(10000 ** (tf.range(start=0, limit=M, delta=1) / M))  # M,
+        single_even_deno = tf.to_float(10000 ** (tf.range(start=1, limit=M + 1, delta=1) / M))
+
+        odd_emb = tf.cos(emb_time_lst / single_odd_deno)
+        even_emb = tf.sin(emb_time_lst / single_even_deno)
+        self.time_lst_emb = odd_emb * single_odd_mask + even_emb * single_even_mask
 
         return type_lst_embedding,\
                self.time_lst,\
+               self.time_lst_emb,\
                target_type_embedding,\
                self.target_type,\
                self.target_time,\
