@@ -12,15 +12,17 @@ class transformer_encoder():
         pass
 
 
-    def stack_multihead_self_attention(self,stack_num,X,M,Mk,Mv,head_num,reuse= None,scope = 'stack_multihead_self_attention'):
+    def stack_multihead_self_attention(self,stack_num,X,M,Mk,Mv,L,N,head_num,reuse= None,scope = 'stack_multihead_self_attention'):
 
-        with tf.get_variable(scope = scope, reuse= reuse):
+        with tf.variable_scope(scope, reuse= reuse):
 
             for i in range(stack_num):
                 X = self.multihead_self_attention(X = X,
                                                   M = M,
                                                   Mk = Mk,
                                                   Mv = Mv,
+                                                  L = L,
+                                                  N = N,
                                                   head_num= head_num,
                                                   reuse=reuse,
                                                   scope = 'block_'+str(i)+'_multihead_self_attention')
@@ -29,7 +31,7 @@ class transformer_encoder():
 
 
 
-    def multihead_self_attention(self,X,M,Mk,Mv,head_num,reuse=None,scope = 'multihead_self_attention'):
+    def multihead_self_attention(self,X,M,Mk,Mv,L,N,head_num,reuse=None,scope = 'multihead_self_attention'):
         """
 
         :param X: batch_size, shape = (batch_size,L, M)
@@ -44,7 +46,6 @@ class transformer_encoder():
 
         with tf.variable_scope(scope,reuse=reuse):
             S = []
-            L= X.shape[1]
             for cur_head in range(head_num):
                 Wq = tf.get_variable(str(cur_head)+'_Wq',shape = (M,Mk))
                 Wk = tf.get_variable(str(cur_head)+'_Wk',shape = (M,Mk))
@@ -52,22 +53,22 @@ class transformer_encoder():
 
                 Q = tf.reshape(tf.matmul(tf.reshape(X,[-1,M]),Wq),shape = [-1,L,Mk])# batch_size, L, Mk
                 K = tf.reshape(tf.matmul(tf.reshape(X,[-1,M]),Wk),shape = [-1,L,Mk])
-                V = tf.reshape(tf.matmul(tf.reshape(X,[-1,M]),Wv),shape = [-1,L,Mk])
+                V = tf.reshape(tf.matmul(tf.reshape(X,[-1,M]),Wv),shape = [-1,L,Mv])
 
                 att = tf.matmul(Q,K,transpose_b=True)/(Mk**0.5) # batch_size, L, L
                 # TODO mask the attention value
-                masked_idx = tf.range(start = 1, limit = L+1,delta = 1)
-                masks = tf.expand_dims(tf.sequence_mask(masked_idx,L))
-                masks = tf.tile(masks,[X.shape[0],1,1])
+                masked_idx = tf.range(start = 1, limit = L+1,delta = 1) # L, L
+                masks = tf.expand_dims(tf.sequence_mask(masked_idx,L),axis = 0)
+                masks = tf.tile(masks,[N,1,1])
                 paddings = tf.ones_like(att) * (-1 ** 32 +1)
                 masked_att = tf.where(masks,att,paddings)
 
                 Si = tf.matmul(tf.nn.softmax(masked_att),V) # batch_size, L, Mv
                 S.append(Si)
 
-            Wo = tf.get_variable('Wo',shape = (head_num * Mv, M))
             S = tf.concat(S,axis=2) # batch_size,L, head_num * Mv
 
+            Wo = tf.get_variable('Wo',shape = (head_num * Mv, M))
             S = tf.reshape(tf.matmul(tf.reshape(S,[-1,head_num * Mv]),Wo), shape = [-1,L, M]) # batch_size, L, M
         return S
 

@@ -11,11 +11,19 @@ class model_parameter:
         self.flags.DEFINE_integer('hidden_units', 8, 'Number of hidden units in each layer')
         self.flags.DEFINE_integer('num_blocks', 3, 'Number of blocks in each attention')
         self.flags.DEFINE_integer('num_heads', 1, 'Number of heads in each attention')
-        self.flags.DEFINE_integer('num_units', 32, 'Number of units in each attention')
-        self.flags.DEFINE_integer('type_emb_size', 32, 'Number of units in each attention')
+        self.flags.DEFINE_integer('num_units', 64, 'Number of units in each attention')
+        self.flags.DEFINE_integer('type_emb_size', 64, 'Number of units in each attention')
         self.flags.DEFINE_list('layers',[],'layer units of intensity calculation network')
-        self.flags.DEFINE_float('dropout', 0.5, 'Dropout probability(0.0: no dropout)')
+        self.flags.DEFINE_float('dropout', 0.1, 'Dropout probability(0.0: no dropout)')
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
+
+        # THP model parametre
+        self.flags.DEFINE_integer('THP_stack_num',1,'the number of multiple self-attention')
+        self.flags.DEFINE_integer('THP_head_num',3,'the head number of mltihead attention')
+        self.flags.DEFINE_integer('THP_Mk',16, 'Mk in THP')
+        self.flags.DEFINE_integer('THP_Mv',16, 'Mv in THP')
+        self.flags.DEFINE_integer('THP_M',64,'M in THP')
+        self.flags.DEFINE_integer('THP_MH',256,'MH in THP')
 
 
         # 随机梯度下降sgd
@@ -25,9 +33,9 @@ class model_parameter:
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
         # 训练批次32
-        self.flags.DEFINE_integer('train_batch_size', 128, 'Training Batch size')
+        self.flags.DEFINE_integer('train_batch_size', 1, 'Training Batch size')
         # 测试批次128
-        self.flags.DEFINE_integer('test_batch_size', 64, 'Testing Batch size')
+        self.flags.DEFINE_integer('test_batch_size', 32, 'Testing Batch size')
         # 最大迭代次数
         self.flags.DEFINE_integer('max_epochs', 100, 'Maximum # of training epochs')
         # 每100个批次的训练状态
@@ -67,28 +75,36 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
+        # self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'model name')
+        self.flags.DEFINE_string('model_name', "THP", 'model name')
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
-        self.flags.DEFINE_string('loss', 'llh_ce', 'the loss function ')
-        # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'llh_ce', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'log_likelihood', 'the loss function ')
+        self.flags.DEFINE_string('loss', 'llh_ce_se', 'the loss function ')
+
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
-        self.flags.DEFINE_integer('sims_len',10,'max number of samples')
+        self.flags.DEFINE_integer('sims_len',5,'max number of samples')
+        self.flags.DEFINE_string('integral_cal','NU','the method to calculate integral')
+
 
         #prepare data
         self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
-        self.flags.DEFINE_string('data_name','mimic_total','the type of the dataset')
+        self.flags.DEFINE_string('data_name','mimic_fold3','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
 
 
     def get_parameter(self,type):
+
+        if self.flags.FLAGS.integral_cal == 'NU':
+            self.flags.FLAGS.sims_len = 2
 
         if type == 'twitter_event':
             self.flags.FLAGS.type_num = 3
@@ -108,7 +124,7 @@ class model_parameter:
         elif type == 'hawkes':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
+            self.flags.FLAGS.max_seq_len = 20
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkes/"
@@ -131,7 +147,7 @@ class model_parameter:
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_conttime/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_conttime/"
         elif type == 'mimic_fold1':
-            self.flags.FLAGS.type_num = 85
+            self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
@@ -139,7 +155,7 @@ class model_parameter:
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold1/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold1/"
         elif type == 'mimic_fold2':
-            self.flags.FLAGS.type_num = 85
+            self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
@@ -147,7 +163,7 @@ class model_parameter:
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold2/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold2/"
         elif type == 'mimic_fold3':
-            self.flags.FLAGS.type_num = 85
+            self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
@@ -155,7 +171,7 @@ class model_parameter:
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold3/"
         elif type == 'mimic_fold4':
-            self.flags.FLAGS.type_num = 85
+            self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
@@ -163,7 +179,7 @@ class model_parameter:
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold4/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold4/"
         elif type == 'mimic_fold5':
-            self.flags.FLAGS.type_num = 85
+            self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"

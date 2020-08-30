@@ -3,7 +3,7 @@
 # @Author  : zxl
 # @FileName: data_loader.py
 
-import json
+import pickle
 import numpy as np
 
 class DataLoader():
@@ -52,8 +52,8 @@ class DataLoader():
     def load_train_test(self):
 
 
-        origin_train_path = self.FLAGS.in_data_root_path + "train.json"
-        origin_test_path =  self.FLAGS.in_data_root_path + "test.json"
+        origin_train_path = self.FLAGS.in_data_root_path + "train.pkl"
+        origin_test_path =  self.FLAGS.in_data_root_path + "test.pkl"
 
         train_path = self.FLAGS.out_data_root_path + "train.txt"
         test_path = self.FLAGS.out_data_root_path + "test.txt"
@@ -84,8 +84,8 @@ class DataLoader():
         return max_seq_len, dataset
 
     def write_file(self,in_file, out_file, key):
-        with open(in_file, 'r') as f:
-            dic = json.load(f)
+        with open(in_file, 'rb') as f:
+            dic = pickle.load(f, encoding='latin-1')
         seq_lst = dic[key]
         max_seq_len, dataset = self.process_data(seq_lst)
         print(key + ' max_seq_len : %d' % max_seq_len)
@@ -110,29 +110,26 @@ class DataLoader():
 
         sims_len = self.FLAGS.sims_len
 
-        # TODO 为什么序列至少需要两个event？？？？？
-        for i in range(len(complete_time_lst)):
+        # 同THP，不预测第一个
+        for i in np.arange(1,len(complete_time_lst),1):
             target_type = complete_type_lst[i]
             target_time = complete_time_lst[i]
 
-            if i == 0: #TODO  使用历史生成h，接着把target与h通过全连接网络
-                type_lst = [0]
-                time_lst = [0]
 
-
-            else:
-                history_len = min(i,self.FLAGS.max_seq_len-1)
-                start_idx = max(0, i-history_len)
-                end_idx = i
-                type_lst = complete_type_lst[start_idx:end_idx]
-                time_lst = complete_time_lst[start_idx:end_idx]
+            history_len = min(i,self.FLAGS.max_seq_len-1)
+            start_idx = max(0, i-history_len)
+            end_idx = i
+            type_lst = complete_type_lst[start_idx:end_idx]
+            time_lst = complete_time_lst[start_idx:end_idx]
 
             type_lst.append(self.FLAGS.type_num) # 最后一个是mask
             time_lst.append(target_time) # 补齐
-
-            sims_time_lst = list(np.random.uniform(time_lst[-2],target_time, sims_len))
+            if self.FLAGS.integral_cal == 'MC':
+                sims_time_lst = list(np.random.uniform(time_lst[-2],target_time, sims_len))
+            else:
+                sims_time_lst = [complete_time_lst[i-1],target_time]
             res.append([type_lst, time_lst,
-                        target_type, target_time, len(time_lst), target_time-time_lst[-1],sims_time_lst])
+                        target_type, target_time, len(time_lst), target_time-time_lst[-2],sims_time_lst])
 
         return res
 
