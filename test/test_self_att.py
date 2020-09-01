@@ -13,7 +13,8 @@ M = 4
 Mk = 3
 Mv = 5
 
-X = tf.random_normal(shape = (batch_size, seq_len, M))
+time_enc = tf.random_normal(shape = (batch_size, seq_len, M))
+type_enc = tf.random_normal(shape = (batch_size, seq_len, M))
 
 
 with tf.Session() as sess:
@@ -27,9 +28,14 @@ with tf.Session() as sess:
     head_num = 1
 
     new_X = transformer_model.stack_multihead_self_attention(stack_num=stack_num,
-                                                             X = X,
+                                                             type_enc=type_enc,
+                                                             time_enc=time_enc,
                                                              M = M,
+                                                             Mi = 1,
                                                              Mk = Mk,
                                                              Mv = Mv,
+                                                             dropout_rate=0.1,
+                                                             L = seq_len,
+                                                             N = batch_size,
                                                              head_num=head_num)
     print(sess.run(new_X))

@@ -24,6 +24,7 @@ class model_parameter:
         self.flags.DEFINE_integer('THP_Mv',16, 'Mv in THP')
         self.flags.DEFINE_integer('THP_M',64,'M in THP')
         self.flags.DEFINE_integer('THP_MH',256,'MH in THP')
+        self.flags.DEFINE_integer('THP_Mi',256,'Mi in THP')
 
 
         # 随机梯度下降sgd

@@ -78,15 +78,17 @@ class THP(THP_model):
 
         transformer_model = transformer_encoder()
 
-        with tf.variable_scope('history_encoding',reuse=tf.AUTO_REUSE):
-            X = self.type_lst_embedding + self.time_lst_embedding
+        # with tf.variable_scope('history_encoding',reuse=tf.AUTO_REUSE):
+        #     X = self.type_lst_embedding + self.time_lst_embedding
 
         with tf.variable_scope('transformer_encoding',reuse=tf.AUTO_REUSE):
             S = transformer_model.stack_multihead_self_attention(stack_num=self.FLAGS.THP_stack_num,
-                                                                 X = X,
+                                                                 type_enc = self.type_lst_embedding,
+                                                                 time_enc = self.time_lst_embedding,
                                                                  M = self.FLAGS.THP_M,
                                                                  Mk = self.FLAGS.THP_Mk,
                                                                  Mv= self.FLAGS.THP_Mv,
+                                                                 Mi = self.FLAGS.THP_Mi,
                                                                  L = self.max_seq_len,
                                                                  N = self.now_batch_size,
                                                                  head_num=self.FLAGS.THP_head_num,
@@ -101,7 +103,14 @@ class THP(THP_model):
                            seq_length=self.max_seq_len,
                            width=M,
                            sequence_tensor=H,
-                           positions=self.mask_index  ) # batch_size, M TODO 到底应该取哪一个
+                           positions=self.mask_index ) # batch_size, M TODO 到底应该取哪一个
+            self.predict_target_emb = discrete_emb
+
+        with tf.variable_scope('prepare_emb',reuse=tf.AUTO_REUSE):
+
+            emb_for_time = self.predict_target_emb
+            emb_for_intensity = self.predict_target_emb
+            emb_for_type = self.predict_target_emb
 
         with tf.variable_scope('lambda_calculation',reuse=tf.AUTO_REUSE):
             col_idx = self.mask_index - 1
@@ -113,26 +122,28 @@ class THP(THP_model):
 
             intensity_model = thp_intensity_calculation()
 
-            self.target_lambda = intensity_model.cal_target_intensity(hidden_emb=discrete_emb,
+
+
+            self.target_lambda = intensity_model.cal_target_intensity(hidden_emb=emb_for_intensity,
                                                                    target_time=self.target_time,
                                                                    last_time=last_time,
                                                                    type_num=self.type_num)
-            self.sims_lambda = intensity_model.cal_sims_intensity(hidden_emb=discrete_emb,
+            self.sims_lambda = intensity_model.cal_sims_intensity(hidden_emb=emb_for_intensity,
                                                                   sims_time = self.sims_time_lst,
                                                                   last_time= last_time,
                                                                   sims_len = self.sims_len,
                                                                   type_num = self.type_num)
-            self.predict_target_emb = discrete_emb
+
 
         with tf.variable_scope('type_time_prediction',reuse=tf.AUTO_REUSE):
             time_predictor = thp_time_predictor()
-            self.predict_time = time_predictor.predict_time(emb=discrete_emb,
+            self.predict_time = time_predictor.predict_time(emb=emb_for_time,
                                                             num_units=self.FLAGS.THP_M) # batch_size, 1
             type_predictor = thp_type_predictor()
-            self.predict_type_prob = type_predictor.predict_type(emb = discrete_emb,
+            self.predict_type_prob = type_predictor.predict_type(emb = emb_for_type,
                                                             num_units=self.FLAGS.THP_M,
                                                             type_num = self.type_num) # batch_size, type_num
-
+            # self.predict_type_prob = self.target_lambda
         self.output()
 
 

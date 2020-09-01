@@ -41,11 +41,14 @@ class transformer_encoder():
 
         return outputs
 
-    def stack_multihead_self_attention(self,stack_num,X,M,Mk,Mv,L,N,head_num,dropout_rate,reuse= None,scope = 'stack_multihead_self_attention'):
+    def stack_multihead_self_attention(self,stack_num,type_enc,time_enc,M,Mk,Mv,Mi,L,N,head_num,dropout_rate,reuse= None,scope = 'stack_multihead_self_attention'):
+
+        X = type_enc
 
         with tf.variable_scope(scope, reuse= reuse):
 
             for i in range(stack_num):
+                X += time_enc
                 X = self.multihead_self_attention(X = X,
                                                   M = M,
                                                   Mk = Mk,
@@ -56,10 +59,41 @@ class transformer_encoder():
                                                   dropout_rate = dropout_rate,
                                                   reuse=reuse,
                                                   scope = 'block_'+str(i)+'_multihead_self_attention')
+                # TODO 需要增加全连接层
+
+
         return X # batch_size, L, M
 
 
+    def positionwise_feedforward(self,X,M,Mi,droppout_rate, reuse=None, scope = 'positionwise_feedforward'):
 
+        """
+
+        :param X: batch_size, seq_len, M
+        :param M: int
+        :param Mi: int
+        :param droppout:
+        :param reuse:
+        :param scope:
+        :return:
+        """
+        with tf.variable_scope(scope,reuse=reuse):
+            residual = X
+
+            X = tf.layers.dense(inputs=X,
+                                 units=Mi,
+                                 activation=tf.nn.relu) # TODO gelu??
+            X = tf.layers.dropout(inputs=X,
+                                  rate=droppout_rate)
+            X = tf.layers.dense(inputs = X,
+                                units = M,
+                                activation=tf.nn.relu) #TODO activation??
+            X = tf.layers.dropout(inputs=X,
+                                  rate = droppout_rate)
+            X += residual
+
+            X = self.normalize(inputs=X) # TODO 这个normalize是不是源代码里面的？
+        return X
 
     def multihead_self_attention(self,X,M,Mk,Mv,L,N,head_num,dropout_rate,reuse=None,scope = 'multihead_self_attention'):
         """
@@ -92,7 +126,7 @@ class transformer_encoder():
                 masked_idx = tf.range(start = 1, limit = L+1,delta = 1) # L, L
                 masks = tf.expand_dims(tf.sequence_mask(masked_idx,L),axis = 0)
                 masks = tf.tile(masks,[N,1,1])
-                paddings = tf.ones_like(att) * (-1 ** 32 +1)
+                paddings = tf.ones_like(att) * (-2 ** 32 +1)
                 masked_att = tf.where(masks,att,paddings)
 
                 masked_att = tf.nn.softmax(masked_att)
@@ -115,5 +149,6 @@ class transformer_encoder():
 
         # normalize
         S = self.normalize(inputs = S)
+
         return S
 

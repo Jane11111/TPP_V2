@@ -26,4 +26,3 @@ class thp_type_predictor():
             predict_type_probs = tf.matmul(emb, W_type) + b_type
             # predict_type_probs = tf.nn.softmax(types)
         return predict_type_probs
-        # return emb
