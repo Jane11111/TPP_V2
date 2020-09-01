@@ -18,7 +18,7 @@ class model_parameter:
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
 
         # THP model parametre
-        self.flags.DEFINE_integer('THP_stack_num',1,'the number of multiple self-attention')
+        self.flags.DEFINE_integer('THP_stack_num',3,'the number of multiple self-attention')
         self.flags.DEFINE_integer('THP_head_num',3,'the head number of mltihead attention')
         self.flags.DEFINE_integer('THP_Mk',16, 'Mk in THP')
         self.flags.DEFINE_integer('THP_Mv',16, 'Mv in THP')

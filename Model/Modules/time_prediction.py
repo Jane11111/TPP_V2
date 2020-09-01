@@ -20,6 +20,7 @@ class thp_time_predictor():
         with tf.variable_scope(scope,reuse=tf.AUTO_REUSE):
 
             W_time = tf.get_variable('W_time',shape = (num_units,1))
+            b_time = tf.get_variable('b_time',shape = [1])
 
-            times = tf.matmul(emb,W_time)
+            times = tf.matmul(emb,W_time) + b_time
         return times

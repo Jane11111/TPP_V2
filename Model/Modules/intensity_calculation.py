@@ -147,8 +147,8 @@ class thp_intensity_calculation():
             alpha_k = - 0.1 # 论文里面将其设置为固定值
             bk = tf.get_variable('bk_'+str(type), shape = [1])
 
-            # TODO 论文里面将分母加了1
-            raw_lambda = alpha_k * (time_interval /(last_time + 1)) + tf.matmul(hidden_emb,wk) + bk
+
+            raw_lambda = alpha_k * (time_interval /(last_time )) + tf.matmul(hidden_emb,wk) + bk
             # TODO
             # raw_lambda = tf.matmul(hidden_emb,wk)
 

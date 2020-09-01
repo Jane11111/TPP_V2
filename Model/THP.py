@@ -36,6 +36,7 @@ class THP_model(base_model):
         self.target_time, \
         self.seq_len, \
         self.T_lst,\
+        self.not_first_lst,\
         self.sims_time_lst,\
         self.target_time_last_lst,\
         self.target_time_now_lst, \
@@ -89,6 +90,7 @@ class THP(THP_model):
                                                                  L = self.max_seq_len,
                                                                  N = self.now_batch_size,
                                                                  head_num=self.FLAGS.THP_head_num,
+                                                                 dropout_rate=self.dropout_rate,
                                                                  ) # batch_size, seq_len, M
         with tf.variable_scope('hidden_emb_cal',reuse=tf.AUTO_REUSE):
             M = self.FLAGS.THP_M 
@@ -99,14 +101,14 @@ class THP(THP_model):
                            seq_length=self.max_seq_len,
                            width=M,
                            sequence_tensor=H,
-                           positions=self.mask_index) # batch_size, M
+                           positions=self.mask_index  ) # batch_size, M TODO 到底应该取哪一个
 
         with tf.variable_scope('lambda_calculation',reuse=tf.AUTO_REUSE):
             col_idx = self.mask_index - 1
             row_idx = tf.reshape(tf.range(start=0, limit=self.now_batch_size, delta=1), [-1, 1])
             idx = tf.concat([row_idx, col_idx], axis=1)
-
-            last_time = tf.gather_nd(self.time_lst, idx) + 1e-9
+            # TODO 论文里面将分母加了1
+            last_time = tf.gather_nd(self.time_lst, idx) + 1
             self.last_time =  last_time    # TODO for testing
 
             intensity_model = thp_intensity_calculation()

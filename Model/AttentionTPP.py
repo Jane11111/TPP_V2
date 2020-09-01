@@ -37,6 +37,7 @@ class AttentionTPP_model(base_model):
         self.target_time, \
         self.seq_len, \
         self.T_lst,\
+        self.not_first_lst,\
         self.sims_time_lst,\
         self.target_time_last_lst,\
         self.target_time_now_lst, \

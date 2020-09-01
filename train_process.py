@@ -108,47 +108,42 @@ class Train_main_process:
 
             def eval_model():
 
-                total_event_num = len(self.test_set)
                 type_prob =  []
                 target_type = [] # one_hot 形式的
                 seq_llh = []
                 time_llh = []
                 type_llh = []
-                cross_entropy = []
                 squared_error = []
+                total_pred_num = len(self.test_set)
                 for step_i, batch_data in DataInput(self.test_set,self.FLAGS.test_batch_size):
                     step_type_prob, step_target_type,\
                     step_seq_llh,step_time_llh,step_type_llh,\
                     step_cross_entropy, step_se_loss = self.model.metrics_likelihood(sess = self.sess,
                                                                        batch_data = batch_data)
-                    type_prob.extend(step_type_prob)
-                    target_type.extend(step_target_type)
-                    seq_llh.extend(step_seq_llh)
-                    time_llh.extend(step_time_llh)
-                    type_llh.extend(step_type_llh)
-                    cross_entropy.extend(step_cross_entropy)
-                    squared_error.extend(step_se_loss)
+                    type_prob.extend(list(step_type_prob))
+                    target_type.extend(list(step_target_type))
+                    seq_llh.extend(list(step_seq_llh))
+                    time_llh.extend(list(step_time_llh))
+                    type_llh.extend(list(step_type_llh))
+                    squared_error.extend(list(step_se_loss))
 
-                predict_type = []
-                for prob_arr in type_prob:
-                    idx = np.argmax(prob_arr)
-                    arr = np.zeros(shape=(self.FLAGS.type_num,))
-                    arr[idx] = 1
-                    predict_type.append(arr)
-                target_type = np.array(target_type)
-                predict_type = np.array(predict_type)
-                auc = roc_auc_score(target_type, predict_type,average='micro')
-                f1 = f1_score(target_type, predict_type,average='micro')
-                recall = recall_score(target_type,predict_type,average='micro')
-                precision = precision_score(target_type,predict_type,average='micro')
-                accuracy = accuracy_score(target_type, predict_type, )
+                correct_num = 0
+                for i in range(len(type_prob)):
+                    pred_probs = type_prob[i]
+                    truth_probs = target_type[i]
+                    idx_pred = np.argmax(pred_probs)
+                    idx_truth = np.argmax(truth_probs)
+                    if idx_pred == idx_truth :
+                        correct_num += 1
+
+                accuracy = correct_num/total_pred_num #TODO 计算方法需更正
+
                 avg_log_likelihood = np.mean(seq_llh)
                 avg_time_llh = np.mean(time_llh)
                 avg_type_llh = np.mean(type_llh)
-                avg_cross_entropy = np.mean(cross_entropy)
-                mse = np.mean(squared_error)
+                rmse = np.sqrt(np.mean(squared_error) )
 
-                return auc, f1, recall, precision, accuracy,avg_log_likelihood,avg_time_llh, avg_type_llh,avg_cross_entropy,mse
+                return avg_log_likelihood, accuracy, rmse
 
 
             self.logger.info('learning rate: %f'%(self.FLAGS.learning_rate))
@@ -172,32 +167,24 @@ class Train_main_process:
 
                     self.global_step += 1
 
-
-
-                    #target_time,predict_target_emb,last_time,target_lambda,\
-                    test_output,\
+                    # target_time,predict_target_emb,last_time,target_lambda,\
+                    # test_output,\
                     step_loss, \
                     seq_llh,time_llh,type_llh,\
-                    ce_loss,se_loss,l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate)
+                    ce_loss,se_loss,\
+                    l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
-                    # print(np.mean(test_output[0])) # target_emb
-                    # print(np.mean(seq_llh))
-                    # print(np.mean(ce_loss))
-                    # print(np.mean(se_loss))
-                    # print('-----------------')
-                    # print(test_output[1]) # target_time
-                    # print(test_output[2]) # last_time
-                    # print(test_output[3]) # target_lambda
-                    # print('---------------------------------')
+
+                    # print(test_output[0])
+                    count += len(train_batch_data)
+
                     avg_loss += step_loss
-                    count+=len(seq_llh)
                     sum_seq_llh+=np.sum(seq_llh)
                     sum_time_llh += np.sum(time_llh)
                     sum_type_llh += np.sum(type_llh)
                     sum_ce_loss+=np.sum(ce_loss)
                     sum_se_loss += np.sum(se_loss)
                     #print("step_loss: %.5f, l2_norm: %.5f"%(step_loss,l2_norm))
-
                     # print(target_lambda)
 
                     if self.global_step % self.FLAGS.display_freq == 0:
@@ -215,7 +202,7 @@ class Train_main_process:
                         sum_type_llh = 0.0
                         sum_ce_loss = 0.0
                         sum_se_loss = 0.0
-                        count = 0
+                        count = 0.0
 
                     # if self.global_step % self.FLAGS.eval_freq == 0:
                     #     auc, f1, recall, precision, accuracy,avg_llh,avg_time_llh,avg_type_llh,avg_ce = eval_model()
@@ -230,18 +217,10 @@ class Train_main_process:
                     #     self.logger.info("cross entroyp: %.5f"%(avg_llh))
 
                 self.logger.info("epoch : %d"%(epoch))
-                auc, f1, recall, precision, accuracy, avg_llh, avg_time_llh, avg_type_llh, avg_ce,mse = eval_model()
-                self.logger.info("auc: %.5f" % (auc))
-                # self.logger.info("f1: %.5f" % (f1))
-                # self.logger.info("recall: %.5f" % (recall))
-                # self.logger.info("precision: %.5f" % (precision))
+                avg_llh, accuracy,rmse  = eval_model()
                 self.logger.info("accuracy: %.5f" % (accuracy))
+                self.logger.info("sqrt mean squared error: %.5f" % (rmse))
                 self.logger.info("log likelihood: %.5f" % (avg_llh))
-                # self.logger.info("cross entroyp: %.5f" % (avg_ce))
-                self.logger.info("sqrt mean squared error: %.5f" % (np.sqrt(mse)))
-                self.logger.info("time likelihood: %.5f" % (avg_time_llh))
-                self.logger.info("type likelihood: %.5f" % (avg_type_llh))
-
                 self.logger.info('one epoch Cost time: %.2f' % (time.time() - epoch_start_time))
 
             self.save_model()

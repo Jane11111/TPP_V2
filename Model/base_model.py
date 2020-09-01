@@ -103,7 +103,7 @@ class base_model(object):
         input_dic[self.learning_rate] = learning_rate
         input_dic[self.now_batch_size] = len(batch_data)
 
-        output_feed = [[self.test_output1 ],
+        output_feed = [
                        self.loss,
                        self.log_likelihood,self.time_likelohood,self.type_likelihood,
                        self.cross_entropy_loss,self.SE_loss,
@@ -116,7 +116,8 @@ class base_model(object):
     def metrics_likelihood(self,sess,batch_data):
 
         output_feed = [
-                       tf.nn.softmax(self.predict_type_prob),self.labels,self.log_likelihood,
+                       self.predict_type_prob,self.labels,
+                       self.log_likelihood,
                        self.time_likelohood,self.type_likelihood,self.cross_entropy_loss,self.SE_loss]
         input_dic = self.embedding.make_feed_dic(batch_data = batch_data)
         input_dic[self.now_batch_size] = len(batch_data)
@@ -136,13 +137,17 @@ class base_model(object):
             )
             one_hot_type = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num ]) # batch_size, type_num
 
+
+
             """type"""
-            log_probs = tf.log (self.predict_type_prob)
-            self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size
+            # self.predict_type_prob, batch_size,  num_units
+            # self.predict_type_prob = tf.matmul(self.predict_type_prob,self.embedding.type_emb_lookup_table[:-3,:],transpose_b=True)
+            self.predict_type_prob = tf.nn.softmax(self.predict_type_prob)
+            log_probs = tf.log (self.predict_type_prob + 1e-9)
+            self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size,
 
             """time"""
-            target_time = tf.reshape(self.target_time, [-1,1])
-            self.SE_loss = (target_time-self.predict_time) ** 2  # batch_size,
+            self.SE_loss  = (self.target_time-tf.squeeze(self.predict_time)) ** 2  # batch_size,
 
             """lambda"""
             # target lambda
@@ -169,11 +174,13 @@ class base_model(object):
             elif self.FLAGS.loss == 'log_likelihood':
                 self.loss =    tf.reduce_mean(self.log_likelihood_loss)
             elif self.FLAGS.loss == 'llh_ce':
-                self.loss =   tf.reduce_mean(self.log_likelihood_loss) + tf.reduce_mean(self.cross_entropy_loss)
+                self.loss =   tf.reduce_mean(self.log_likelihood_loss)  \
+                              + tf.reduce_mean(self.cross_entropy_loss)
             else: # TODO se 是否需要除以一个scale
-                self.loss = (tf.reduce_mean(self.SE_loss) /100)+ tf.reduce_mean(self.log_likelihood_loss) + tf.reduce_mean(self.cross_entropy_loss)
+                self.loss = tf.reduce_mean(self.SE_loss)/100\
+                            + tf.reduce_mean(self.log_likelihood_loss) \
+                            + tf.reduce_mean(self.cross_entropy_loss)
 
-            self.test_output1 = (self.SE_loss + self.log_likelihood_loss + self.cross_entropy_loss)
 
             # for metrics
             self.labels = one_hot_type
@@ -182,9 +189,9 @@ class base_model(object):
             tf.summary.scalar('l2_norm', self.l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
             tf.summary.scalar('loss', self.loss)
-            tf.summary.scalar('seq_log_likelihood', tf.reduce_mean(self.log_likelihood))
-            tf.summary.scalar('time_log_likelihood', tf.reduce_mean(self.time_likelohood))
-            tf.summary.scalar('type_log_likelihood', tf.reduce_mean(self.type_likelihood))
-            tf.summary.scalar('cross_entropy_loss', tf.reduce_mean(self.cross_entropy_loss))
-            tf.summary.scalar('mean_square_error_loss', tf.reduce_mean(self.SE_loss))
+            tf.summary.scalar('seq_log_likelihood', tf.reduce_mean(self.log_likelihood) )
+            tf.summary.scalar('time_log_likelihood', tf.reduce_mean(self.time_likelohood) )
+            tf.summary.scalar('type_log_likelihood', tf.reduce_mean(self.type_likelihood) )
+            tf.summary.scalar('cross_entropy_loss', tf.reduce_mean(self.cross_entropy_loss) )
+            tf.summary.scalar('sqrt_mean_square_error_loss', tf.sqrt(tf.reduce_mean(self.SE_loss) ))
         self.cal_gradient(tf.trainable_variables())

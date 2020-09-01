@@ -30,6 +30,7 @@ class history_embedding(Base_embedding):
             # 当前这个sequence的长度
             self.seq_len = tf.placeholder(tf.int32,[None,], name= 'seq_len')
             self.T_lst = tf.placeholder(tf.float32, [None, ], name='T_lst')
+            self.not_first_lst = tf.placeholder(tf.float32, [None, ], name='not_first_lst')
             # # 当前sequence采样的长度
             # self.sims_len = tf.placeholder(tf.int32, [None,], name = 'sims_len')
             # 当前sequence采样的时间lst 已补齐
@@ -93,6 +94,7 @@ class history_embedding(Base_embedding):
                self.target_time,\
                self.seq_len,\
                self.T_lst,\
+               self.not_first_lst,\
                self.sims_time_lst,\
                self.target_time_last_lst,\
                self.target_time_now_lst,\
@@ -107,6 +109,7 @@ class history_embedding(Base_embedding):
         target_time = []
         seq_len = []
         T_lst = []
+        not_first_lst = []
         sims_time_lst = []
         target_time_last_lst =[]
         target_time_now_lst = []
@@ -124,12 +127,13 @@ class history_embedding(Base_embedding):
             target_time.append(example[3])
             seq_len.append(example[4])
             T_lst.append(example[5])
-            sims_time_lst.append(example[6])
-            target_time_last_lst.append(np.pad(example[7][0],padding_size,'constant'))
-            target_time_now_lst.append(np.pad(example[7][1],padding_size,'constant'))
+            not_first_lst.append(example[6])
+            sims_time_lst.append(example[7])
+            target_time_last_lst.append(np.pad(example[8][0],padding_size,'constant'))
+            target_time_now_lst.append(np.pad(example[8][1],padding_size,'constant'))
             tmp_sim_last = []
             tmp_sim_now = []
-            for sims_time_last_now_list in example[8]:
+            for sims_time_last_now_list in example[9]:
                 tmp_sim_last.append(np.pad(sims_time_last_now_list[0], padding_size, 'constant'))
                 tmp_sim_now.append(np.pad(sims_time_last_now_list[1], padding_size, 'constant'))
 
@@ -141,6 +145,7 @@ class history_embedding(Base_embedding):
         feed_dic[self.target_time] = np.array(target_time)
         feed_dic[self.seq_len] = np.array(seq_len)
         feed_dic[self.T_lst] = np.array(T_lst)
+        feed_dic[self.not_first_lst] = np.array(not_first_lst)
         feed_dic[self.sims_time_lst] = np.array(sims_time_lst)
 
         feed_dic[self.target_time_last_lst]=np.array(target_time_last_lst)

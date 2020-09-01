@@ -12,7 +12,36 @@ class transformer_encoder():
         pass
 
 
-    def stack_multihead_self_attention(self,stack_num,X,M,Mk,Mv,L,N,head_num,reuse= None,scope = 'stack_multihead_self_attention'):
+    def normalize(self,inputs,
+                  epsilon=1e-8,
+                  scope="ln",
+                  reuse=None):
+        '''Applies layer normalization.
+
+        Args:
+          inputs: A tensor with 2 or more dimensions, where the first dimension has
+          `batch_size`.
+          epsilon: A floating number. A very small number for preventing ZeroDivision Error.
+          scope: Optional scope for `variable_scope`.
+          reuse: Boolean, whether to reuse the weights of a previous layer
+          by the same name.
+
+        Returns:
+          A tensor with the same shape and data dtype as `inputs`.
+        '''
+        with tf.variable_scope(scope, reuse=reuse):
+            inputs_shape = inputs.get_shape()
+            params_shape = inputs_shape[-1:]
+
+            mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
+            beta = tf.Variable(tf.zeros(params_shape))
+            gamma = tf.Variable(tf.ones(params_shape))
+            normalized = (inputs - mean) / ((variance + epsilon) ** (.5))
+            outputs = gamma * normalized + beta
+
+        return outputs
+
+    def stack_multihead_self_attention(self,stack_num,X,M,Mk,Mv,L,N,head_num,dropout_rate,reuse= None,scope = 'stack_multihead_self_attention'):
 
         with tf.variable_scope(scope, reuse= reuse):
 
@@ -24,6 +53,7 @@ class transformer_encoder():
                                                   L = L,
                                                   N = N,
                                                   head_num= head_num,
+                                                  dropout_rate = dropout_rate,
                                                   reuse=reuse,
                                                   scope = 'block_'+str(i)+'_multihead_self_attention')
         return X # batch_size, L, M
@@ -31,7 +61,7 @@ class transformer_encoder():
 
 
 
-    def multihead_self_attention(self,X,M,Mk,Mv,L,N,head_num,reuse=None,scope = 'multihead_self_attention'):
+    def multihead_self_attention(self,X,M,Mk,Mv,L,N,head_num,dropout_rate,reuse=None,scope = 'multihead_self_attention'):
         """
 
         :param X: batch_size, shape = (batch_size,L, M)
@@ -56,6 +86,8 @@ class transformer_encoder():
                 V = tf.reshape(tf.matmul(tf.reshape(X,[-1,M]),Wv),shape = [-1,L,Mv])
 
                 att = tf.matmul(Q,K,transpose_b=True)/(Mk**0.5) # batch_size, L, L
+
+
                 # TODO mask the attention value
                 masked_idx = tf.range(start = 1, limit = L+1,delta = 1) # L, L
                 masks = tf.expand_dims(tf.sequence_mask(masked_idx,L),axis = 0)
@@ -63,12 +95,25 @@ class transformer_encoder():
                 paddings = tf.ones_like(att) * (-1 ** 32 +1)
                 masked_att = tf.where(masks,att,paddings)
 
-                Si = tf.matmul(tf.nn.softmax(masked_att),V) # batch_size, L, Mv
+                masked_att = tf.nn.softmax(masked_att)
+
+                # Dropouts
+                masked_att = tf.layers.dropout(masked_att,rate = dropout_rate)
+
+                # Weighted sum
+                Si = tf.matmul(masked_att,V) # batch_size, L, Mv
                 S.append(Si)
 
+            # Restore shape
             S = tf.concat(S,axis=2) # batch_size,L, head_num * Mv
 
             Wo = tf.get_variable('Wo',shape = (head_num * Mv, M))
             S = tf.reshape(tf.matmul(tf.reshape(S,[-1,head_num * Mv]),Wo), shape = [-1,L, M]) # batch_size, L, M
+
+        # Residual connection
+        S += X
+
+        # normalize
+        S = self.normalize(inputs = S)
         return S
 

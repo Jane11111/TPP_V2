@@ -14,16 +14,11 @@ from Model.Modules.net_utils import gather_indexes, layer_norm
 # batch_size = 2
 # seq_len = 3
 #
-a = tf.constant([[1,2,3],
-                 [4,5,6]])
-
-col_idx = tf.reshape(tf.constant([0,1]),[-1,1])
-row_idx = tf.reshape(tf.range(start = 0, limit = a.shape[0],delta = 1),[-1,1])
-idx = tf.concat([row_idx,col_idx],axis = 1)
-
-res = tf.gather_nd(a,idx)
+a = tf.constant([1,2,3])
+b = tf.constant([0,1,0])
+c = tf.reduce_sum(a)
 
 
 
 with tf.Session() as sess:
-    print(sess.run(res))
+    print(sess.run(c))

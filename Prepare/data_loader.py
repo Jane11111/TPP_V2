@@ -38,7 +38,7 @@ class DataLoader():
                     continue
                 tmp.append(self.pro_time_method(tmp[1],tmp[3]))
                 sim_time_list = []
-                for t in tmp[6]:
+                for t in tmp[7]:
                     sim_time_list.append(self.pro_time_method(tmp[1],t))
 
                 tmp.append(sim_time_list)
@@ -110,12 +110,18 @@ class DataLoader():
 
         sims_len = self.FLAGS.sims_len
 
-        # 同THP，不预测第一个
+        #
         for i in np.arange(1,len(complete_time_lst),1):
             target_type = complete_type_lst[i]
             target_time = complete_time_lst[i]
 
-
+            not_first = 1.
+            # if i == 0:
+            #     type_lst = [0]
+            #     time_lst = [0]
+            #     not_first = 0.
+            #
+            # else:
             history_len = min(i,self.FLAGS.max_seq_len-1)
             start_idx = max(0, i-history_len)
             end_idx = i
@@ -129,7 +135,7 @@ class DataLoader():
             else:
                 sims_time_lst = [complete_time_lst[i-1],target_time]
             res.append([type_lst, time_lst,
-                        target_type, target_time, len(time_lst), target_time-time_lst[-2],sims_time_lst])
+                        target_type, target_time, len(time_lst),target_time-time_lst[-2], not_first,sims_time_lst,])
 
         return res
 
