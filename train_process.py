@@ -44,6 +44,7 @@ class Train_main_process:
 
         self.logger.info("start loading dataset!")
         self.train_set, self.test_set = prepare_data_ins.load_train_test()
+        print('test event len: %d'%(len(self.test_set)))
 
         self.logger.info("dataset loaded!")
 
@@ -83,6 +84,10 @@ class Train_main_process:
         else:
             self.logger.info(tf.test.gpu_device_name())
 
+        global_step_lr = tf.Variable(0, trainable=False)
+        decay_rate = tf.train.exponential_decay(
+            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=0.95,
+            staircase=True)
 
         with self.sess.as_default():
 
@@ -159,11 +164,22 @@ class Train_main_process:
             count = 0
             learning_rate = self.FLAGS.learning_rate
 
+            llh_lst =[-100]
+            acc_lst = [0]
+            rmse_lst = [100]
+
+            early_stop = 0
+
+
             for epoch in range(self.FLAGS.max_epochs):
                 epoch_start_time = time.time()
 
                 random.shuffle(self.train_set)
+                # 内存增加原因？？？
+                self.sess.graph.finalize()
+
                 for step_i,train_batch_data in DataInput(self.train_set, self.FLAGS.train_batch_size):
+                    llh_decay_rate = self.sess.run(decay_rate, feed_dict={global_step_lr: self.global_step})
 
                     self.global_step += 1
 
@@ -172,7 +188,7 @@ class Train_main_process:
                     step_loss, \
                     seq_llh,time_llh,type_llh,\
                     ce_loss,se_loss,\
-                    l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate)
+                    l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate,llh_decay_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
 
                     # print(test_output[0])
@@ -187,57 +203,57 @@ class Train_main_process:
                     #print("step_loss: %.5f, l2_norm: %.5f"%(step_loss,l2_norm))
                     # print(target_lambda)
 
-                    if self.global_step % self.FLAGS.display_freq == 0:
-                        self.logger.info("epoch: %d, train_loss :%.5f, seq llh :%.5f,"
-                                         "cross_entropy_loss: %.5f, rmse_loss: %.5f,"
-                                         "time_llh: %.5f, type_llh:%.5f, step: %d, global_step: %d"
-                                         %(epoch,avg_loss/ self.FLAGS.display_freq,
-                                           sum_seq_llh/count,
-                                           sum_ce_loss/count,np.sqrt(sum_se_loss/count),
-                                           sum_time_llh/count,sum_type_llh/count,
-                                           step_i, self.global_step))
-                        avg_loss = 0.0
-                        sum_seq_llh = 0.0
-                        sum_time_llh = 0.0
-                        sum_type_llh = 0.0
-                        sum_ce_loss = 0.0
-                        sum_se_loss = 0.0
-                        count = 0.0
-
-                    # if self.global_step % self.FLAGS.eval_freq == 0:
-                    #     auc, f1, recall, precision, accuracy,avg_llh,avg_time_llh,avg_type_llh,avg_ce = eval_model()
-                    #     self.logger.info("auc: %.5f" % (auc))
-                    #     self.logger.info("f1: %.5f" % (f1))
-                    #     self.logger.info("recall: %.5f" % (recall))
-                    #     self.logger.info("precision: %.5f" % (precision))
-                    #     self.logger.info("accuracy: %.5f" % (accuracy))
-                    #     self.logger.info("log likelihood: %.5f"%(avg_llh))
-                    #     self.logger.info("time likelihood: %.5f"%(avg_time_llh))
-                    #     self.logger.info("type likelihood: %.5f"%(avg_type_llh))
-                    #     self.logger.info("cross entroyp: %.5f"%(avg_llh))
+                    # if self.global_step % self.FLAGS.display_freq == 0:
+                    #     self.logger.info("epoch: %d, train_loss :%.5f, seq llh :%.5f,"
+                    #                      "cross_entropy_loss: %.5f, rmse_loss: %.5f,"
+                    #                      "time_llh: %.5f, type_llh:%.5f, step: %d, global_step: %d"
+                    #                      %(epoch,avg_loss/ self.FLAGS.display_freq,
+                    #                        sum_seq_llh/count,
+                    #                        sum_ce_loss/count,np.sqrt(sum_se_loss/count),
+                    #                        sum_time_llh/count,sum_type_llh/count,
+                    #                        step_i, self.global_step))
+                    #     avg_loss = 0.0
+                    #     sum_seq_llh = 0.0
+                    #     sum_time_llh = 0.0
+                    #     sum_type_llh = 0.0
+                    #     sum_ce_loss = 0.0
+                    #     sum_se_loss = 0.0
+                    #     count = 0.0
 
                 self.logger.info("epoch : %d"%(epoch))
                 avg_llh, accuracy,rmse  = eval_model()
-                self.logger.info("accuracy: %.5f" % (accuracy))
-                self.logger.info("sqrt mean squared error: %.5f" % (rmse))
-                self.logger.info("log likelihood: %.5f" % (avg_llh))
+                self.logger.info("log likelihood: %.5f, accuracy: %.5f, sqrt mean squared error: %.5f"
+                                 % (avg_llh,accuracy,rmse))
                 self.logger.info('one epoch Cost time: %.2f' % (time.time() - epoch_start_time))
 
-            self.save_model()
+                if avg_llh<=np.max(llh_lst) and accuracy <= np.max(acc_lst) and rmse>=np.min(rmse_lst):
+                    early_stop += 1
+                    print('llh: %.5f, accuracy: %.5f, rmse: %.5f'%(avg_llh,accuracy,rmse))
+                    print('max llh: %.5f, accuracy: %.5f, rmse: %.5f' %(np.max(llh_lst),np.max(acc_lst),np.min(rmse_lst)))
+                else:
+                    early_stop = 0
+
+                llh_lst.append(avg_llh)
+                acc_lst.append(accuracy)
+                rmse_lst.append(rmse)
+                self.logger.info("MAX log likelihood: %.5f, MAX accuracy: %.5f,MIN sqrt mean squared error: %.5f"
+                                 % (np.max(llh_lst), np.max(acc_lst), np.min(rmse_lst)))
+                if early_stop >= 5: # 连续5轮都没有最好的结果好
+                    break
+
+                # self.save_model()
 
 
 
 
     def save_model(self):
-         is_save_model = False
 
-         if self.global_step % 2000 == 0:
-             is_save_model = True
+         timeArray = time.localtime(time.time())
+         timeStr = time.strftime("%Y_%m_%d__%H_%M_%S", timeArray)
 
-         if is_save_model:
-             path = "D://Project/TPP/check_point/" + self.FLAGS.data_name + '-' +\
-                    str(self.FLAGS.learning_rate) + "/"
-             self.model.save(self.sess,self.global_step, path = path)
+         path = "D://Project/TPP_V2/check_point/" +self.FLAGS.model_name+"-"+timeStr+"-"+ self.FLAGS.data_name + '-' +\
+                str(self.FLAGS.learning_rate) + "/"
+         self.model.save(self.sess,self.global_step, path = path)
 
 
 if __name__ == "__main__":

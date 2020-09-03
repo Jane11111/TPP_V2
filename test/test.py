@@ -38,3 +38,6 @@ x1 = pow(np.e,0.1)
 x2 = pow(np.e,0)
 x3 = pow(np.e,0)
 print(x2/(x1+x2+x3))
+
+c = 3**2
+print(c)

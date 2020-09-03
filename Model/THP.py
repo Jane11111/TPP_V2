@@ -94,21 +94,21 @@ class THP(THP_model):
                                                                  head_num=self.FLAGS.THP_head_num,
                                                                  dropout_rate=self.dropout_rate,
                                                                  ) # batch_size, seq_len, M
-        with tf.variable_scope('hidden_emb_cal',reuse=tf.AUTO_REUSE):
-            M = self.FLAGS.THP_M 
-            MH = self.FLAGS.THP_MH
-            H = self.hidden_emb_generation(S=S, M = M, MH = MH) # batch_size, seq_len, M
+        with tf.variable_scope('hidden_emb_cal',reuse=tf.AUTO_REUSE): # TODO 这一部分可以删除
+            M = self.FLAGS.THP_M
+            # MH = self.FLAGS.THP_MH
+            # H = self.hidden_emb_generation(S=S, M = M, MH = MH) # batch_size, seq_len, M
 
             discrete_emb = gather_indexes(batch_size=self.now_batch_size,
                            seq_length=self.max_seq_len,
                            width=M,
-                           sequence_tensor=H,
-                           positions=self.mask_index ) # batch_size, M TODO 到底应该取哪一个
+                           sequence_tensor=S,
+                           positions=self.mask_index) # batch_size, M TODO 到底应该取哪一个
             self.predict_target_emb = discrete_emb
-
         with tf.variable_scope('prepare_emb',reuse=tf.AUTO_REUSE):
 
             emb_for_time = self.predict_target_emb
+            # emb_for_intensity = tf.layers.dense(inputs=self.predict_target_emb,units = self.num_units)
             emb_for_intensity = self.predict_target_emb
             emb_for_type = self.predict_target_emb
 

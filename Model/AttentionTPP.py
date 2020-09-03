@@ -8,8 +8,10 @@ from Model.Modules.gru import GRU
 from Model.base_model import base_model
 from Model.Modules.net_utils import gather_indexes, layer_norm
 from Model.Modules.time_aware_attention import Time_Aware_Attention
-from Model.Modules.intensity_calculation import mlt_intensity,single_intensity,e_intensity
-
+from Model.Modules.intensity_calculation import mlt_intensity,single_intensity,e_intensity,thp_intensity_calculation
+from Model.Modules.type_prediction import thp_type_predictor
+from Model.Modules.time_prediction import thp_time_predictor
+from Model.Modules.transformer_encoder import transformer_encoder
 
 class AttentionTPP_model(base_model):
 
@@ -31,7 +33,7 @@ class AttentionTPP_model(base_model):
 
         self.type_lst_embedding, \
         self.time_lst, \
-        self.time_lst_emb, \
+        self.time_lst_embedding, \
         self.target_type_embedding, \
         self.target_type,\
         self.target_time, \
@@ -181,7 +183,7 @@ class MTAM_TPP_wendy(AttentionTPP_model):
                                            seq_length=self.max_seq_len,
                                            width=self.num_units,
                                            sequence_tensor=self.short_term_intent_temp,
-                                           positions=self.mask_index -1 )  # TODO 感觉这里 应该是把最后一个取出来，而不是mask_index-1
+                                           positions=self.mask_index -1 )  #batch_size, num_units
             short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
         with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
             predict_emb = self.time_aware_attention.vanilla_attention(enc=self.type_lst_embedding,
@@ -202,13 +204,13 @@ class MTAM_TPP_wendy(AttentionTPP_model):
                                                                  )
 
 
-        return layer_norm(predict_emb)
+        return layer_norm(predict_emb),layer_norm(short_term_intent)
 
 
     def build_model(self):
         self.time_aware_attention = Time_Aware_Attention()
         self.gru_net_ins = GRU()
-        predict_target_lambda_emb  = self.get_emb(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
+        predict_target_lambda_emb,predict_short_term_intent  = self.get_emb(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
         predict_target_lambda_emb = tf.reshape(predict_target_lambda_emb,[self.now_batch_size,self.num_units])
 
         # sims_time_lst: batch_size, sims_len
@@ -219,24 +221,71 @@ class MTAM_TPP_wendy(AttentionTPP_model):
         sims_time_now = tf.squeeze(tf.split(self.sim_time_now_lst, self.sims_len, 1),2)
         for i in range(self.sims_len):
             #第i个时间 batch_size, num_units
-            cur_sims_emb = self.get_emb(sims_time[i],sims_time_last[i],sims_time_now[i])
+            cur_sims_emb, _ = self.get_emb(sims_time[i],sims_time_last[i],sims_time_now[i])
             cur_sims_emb = tf.reshape(cur_sims_emb, [self.now_batch_size,self.num_units])
             predict_sims_emb = tf.concat([predict_sims_emb,cur_sims_emb],axis = 1)
 
         predict_sims_emb = predict_sims_emb[:,1:] # batch_size, sims_len * num_units
         predict_sims_emb = tf.reshape(predict_sims_emb,[-1,self.sims_len,self.num_units])# batch_size, sims_len , num_units
 
-        self.predict_target_emb = predict_target_lambda_emb # sim_len, batch_size, num_units
+        self.predict_target_emb = predict_target_lambda_emb #
         self.predict_sims_emb = predict_sims_emb
+
+        with tf.variable_scope('prepare_emb'):
+            emb_for_intensity = self.predict_target_emb
+            # emb_for_time = predict_short_term_intent #TODO 使用short term intent预测时间
+            emb_for_time = self.predict_target_emb
+            emb_for_type = self.predict_target_emb
+            # emb_for_type = predict_short_term_intent
+
+            transformer_model = transformer_encoder()
+
+            # with tf.variable_scope('history_encoding',reuse=tf.AUTO_REUSE):
+            #     X = self.type_lst_embedding + self.time_lst_embedding
+
+            with tf.variable_scope('transformer_encoding', reuse=tf.AUTO_REUSE):
+                S = transformer_model.stack_multihead_self_attention(stack_num=self.FLAGS.THP_stack_num,
+                                                                     type_enc=self.type_lst_embedding,
+                                                                     time_enc=self.time_lst_embedding,
+                                                                     M=self.FLAGS.THP_M,
+                                                                     Mk=self.FLAGS.THP_Mk,
+                                                                     Mv=self.FLAGS.THP_Mv,
+                                                                     Mi=self.FLAGS.THP_Mi,
+                                                                     L=self.max_seq_len,
+                                                                     N=self.now_batch_size,
+                                                                     head_num=self.FLAGS.THP_head_num,
+                                                                     dropout_rate=self.dropout_rate,
+                                                                     )  # batch_size, seq_len, M
+            with tf.variable_scope('hidden_emb_cal', reuse=tf.AUTO_REUSE):  # TODO 这一部分可以删除
+                M = self.FLAGS.THP_M
+                # MH = self.FLAGS.THP_MH
+                # H = self.hidden_emb_generation(S=S, M = M, MH = MH) # batch_size, seq_len, M
+
+                discrete_emb = gather_indexes(batch_size=self.now_batch_size,
+                                              seq_length=self.max_seq_len,
+                                              width=M,
+                                              sequence_tensor=S,
+                                              positions=self.mask_index)  # batch_size, M TODO 到底应该取哪一个
+            emb_for_time = discrete_emb
+
 
         with tf.variable_scope('intensity_calculation'):
             type_lookup_table = self.embedding.type_emb_lookup_table[:-3, :]  # type_num   , num_units
             intensity_model = e_intensity(W=type_lookup_table, type_num=self.type_num)
 
-            self.target_intensity = intensity_model.cal_target_intensity(self.predict_target_emb)
-            self.sims_intensity = intensity_model.cal_sims_intensity(self.predict_sims_emb, max_sims_len=self.sims_len,
+            self.target_lambda = intensity_model.cal_target_intensity(self.predict_target_emb)
+            self.sims_lambda = intensity_model.cal_sims_intensity(self.predict_sims_emb, max_sims_len=self.sims_len,
                                                                      num_units=self.num_units)
 
+        with tf.variable_scope('type_time_calculation'):
+            time_predictor = thp_time_predictor()
+            self.predict_time = time_predictor.predict_time(emb=emb_for_time,
+                                                            num_units=self.FLAGS.THP_M)  # batch_size, 1
+
+            type_predictor = thp_type_predictor()
+            self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
+                                                                 num_units=self.FLAGS.THP_M,
+                                                                 type_num=self.type_num)
         self.output()
 
 

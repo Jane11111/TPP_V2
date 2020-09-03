@@ -399,13 +399,6 @@ class Time_Aware_Attention():
             outputs = self.normalize(outputs)  # (N, T_q, C)
 
 
-        #TODO 假如只用历史的平均呢
-        # keys = tf.reduce_mean(keys, axis = 1) # batch_size, num_units
-        # keys = tf.expand_dims(keys, axis = 1) # batch_size, 1, num_units
-        # keys = tf.tile(keys, [1,queries.shape[1],1]) # batch_size, T_q, num_units
-        # keys_queries = tf.concat([queries, keys], axis = 2) # batch_size, T_q, num_units * 2
-        # outputs = keys_queries
-
 
         return outputs, att_vec
 
@@ -506,7 +499,7 @@ class Time_Aware_Attention():
                                                        t_keys_length=t_keys_length
                                                        )
 
-                    ## Feed Forward
+                    ## Feed Forward TODO 是否需要增加个前馈网络
                     #dec = self.feedforward(dec,num_units=[num_units // 4, num_units],
                                       #scope="feed_forward", reuse=reuse)
 

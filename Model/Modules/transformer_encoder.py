@@ -60,12 +60,16 @@ class transformer_encoder():
                                                   reuse=reuse,
                                                   scope = 'block_'+str(i)+'_multihead_self_attention')
                 # TODO 需要增加全连接层
+                X = self.positionwise_feedforward(X = X,
+                                                  M = M,
+                                                  Mi = Mi,
+                                                  dropout_rate = dropout_rate)
 
 
         return X # batch_size, L, M
 
 
-    def positionwise_feedforward(self,X,M,Mi,droppout_rate, reuse=None, scope = 'positionwise_feedforward'):
+    def positionwise_feedforward(self,X,M,Mi,dropout_rate, reuse=None, scope = 'positionwise_feedforward'):
 
         """
 
@@ -84,12 +88,12 @@ class transformer_encoder():
                                  units=Mi,
                                  activation=tf.nn.relu) # TODO gelu??
             X = tf.layers.dropout(inputs=X,
-                                  rate=droppout_rate)
+                                  rate=dropout_rate)
             X = tf.layers.dense(inputs = X,
                                 units = M,
                                 activation=tf.nn.relu) #TODO activation??
             X = tf.layers.dropout(inputs=X,
-                                  rate = droppout_rate)
+                                  rate = dropout_rate)
             X += residual
 
             X = self.normalize(inputs=X) # TODO 这个normalize是不是源代码里面的？

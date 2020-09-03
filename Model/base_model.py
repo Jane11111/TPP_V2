@@ -17,7 +17,7 @@ class base_model(object):
     def __init__(self,FLAGS,Embedding):
         self.FLAGS = FLAGS
         self.learning_rate = tf.placeholder(tf.float64,[],name = 'learning_rate') #learning_rate都设置成输入了
-
+        self.llh_decay_rate = tf.placeholder(tf.float32, [], name='llh_decay_rate')
         if self.FLAGS.checkpoint_path_dir != None:
             self.checkpoint_path_dir = self.FLAGS.checkpoint_path_dir
         else:
@@ -96,11 +96,12 @@ class base_model(object):
         self.train_op = self.opt.apply_gradients(zip(clip_gradients, trainable_params))
         self.summary()
 
-    def train(self, sess, batch_data, learning_rate):
+    def train(self, sess, batch_data, learning_rate,llh_decay_rate):
 
         input_dic = self.embedding.make_feed_dic(batch_data = batch_data)
 
         input_dic[self.learning_rate] = learning_rate
+        input_dic[self.llh_decay_rate] = llh_decay_rate
         input_dic[self.now_batch_size] = len(batch_data)
 
         output_feed = [
@@ -126,7 +127,7 @@ class base_model(object):
 
     def output(self):
 
-        with tf.name_scope('likelihood_loss'):
+        with tf.name_scope('loss_function'):
 
             self.l2_norm = tf.add_n([
                 tf.nn.l2_loss(self.type_lst_embedding)
@@ -141,7 +142,7 @@ class base_model(object):
 
             """type"""
             # self.predict_type_prob, batch_size,  num_units
-            # self.predict_type_prob = tf.matmul(self.predict_type_prob,self.embedding.type_emb_lookup_table[:-3,:],transpose_b=True)
+            self.predict_type_prob = tf.matmul(self.predict_type_prob,self.embedding.type_emb_lookup_table[:-3,:],transpose_b=True)
             self.predict_type_prob = tf.nn.softmax(self.predict_type_prob)
             log_probs = tf.log (self.predict_type_prob + 1e-9)
             self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size,
@@ -151,6 +152,9 @@ class base_model(object):
 
             """lambda"""
             # target lambda
+            # self.target_lambda = tf.matmul(self.target_lambda,self.embedding.type_emb_lookup_table[:-3,:],transpose_b=True)
+            # self.target_lambda = tf.nn.relu6(self.target_lambda)
+
             target_type_lambda = self.target_lambda * one_hot_type  # batch_size, type_num
             log_target_type_lambda = tf.log(tf.reduce_sum(target_type_lambda+1e-9, axis=1))  # batch_size,
             sum_lambda = tf.reduce_sum(self.target_lambda ,axis = 1) # batch_size,
@@ -174,20 +178,26 @@ class base_model(object):
             elif self.FLAGS.loss == 'log_likelihood':
                 self.loss =    tf.reduce_mean(self.log_likelihood_loss)
             elif self.FLAGS.loss == 'llh_ce':
-                self.loss =   tf.reduce_mean(self.log_likelihood_loss)  \
+                self.loss =    tf.reduce_mean(self.log_likelihood_loss)  \
                               + tf.reduce_mean(self.cross_entropy_loss)
             else: # TODO se 是否需要除以一个scale
-                self.loss = tf.reduce_mean(self.SE_loss)/100\
-                            + tf.reduce_mean(self.log_likelihood_loss) \
+                scale = 1
+                self.loss = tf.reduce_mean(self.SE_loss)/scale\
+                            + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
                             + tf.reduce_mean(self.cross_entropy_loss)
-
-
+            # self.loss = tf.reduce_mean(self.SE_loss)
+            # self.loss = tf.reduce_mean(self.SE_loss)   \
+            #             + tf.reduce_mean(self.cross_entropy_loss)
+            # self.loss = 10* tf.reduce_mean(self.SE_loss) \
+            #             +self.llh_decay_rate *tf.reduce_mean(self.log_likelihood_loss) \
+            #             + tf.reduce_mean(self.cross_entropy_loss)
             # for metrics
             self.labels = one_hot_type
             # self.target_lambda = target_lambda
 
             tf.summary.scalar('l2_norm', self.l2_norm)
             tf.summary.scalar('learning_rate', self.learning_rate)
+            tf.summary.scalar('llh_decay_rate', self.llh_decay_rate)
             tf.summary.scalar('loss', self.loss)
             tf.summary.scalar('seq_log_likelihood', tf.reduce_mean(self.log_likelihood) )
             tf.summary.scalar('time_log_likelihood', tf.reduce_mean(self.time_likelohood) )

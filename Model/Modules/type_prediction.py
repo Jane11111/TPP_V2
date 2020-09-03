@@ -20,9 +20,10 @@ class thp_type_predictor():
         """
 
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-            W_type = tf.get_variable('W_type', shape=(num_units, type_num))
-            b_type = tf.get_variable('b_type', shape = (type_num,))
+            W_type = tf.get_variable('W_type', shape=(num_units, num_units))
+            b_type = tf.get_variable('b_type', shape = (num_units,))
 
             predict_type_probs = tf.matmul(emb, W_type) + b_type
             # predict_type_probs = tf.nn.softmax(types)
         return predict_type_probs
+        # return emb

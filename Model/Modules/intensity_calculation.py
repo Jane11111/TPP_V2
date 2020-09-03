@@ -102,7 +102,7 @@ class e_intensity():
         :return:  batch_size, type_num
         """
 
-        intensity = tf.nn.relu(tf.matmul(emb, self.W, transpose_b= True))
+        intensity = tf.nn.softplus(tf.matmul(emb, self.W, transpose_b= True))
         return intensity
 
     def cal_target_intensity(self,emb):

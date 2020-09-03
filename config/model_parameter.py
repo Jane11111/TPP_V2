@@ -38,7 +38,7 @@ class model_parameter:
         # 测试批次128
         self.flags.DEFINE_integer('test_batch_size', 32, 'Testing Batch size')
         # 最大迭代次数
-        self.flags.DEFINE_integer('max_epochs', 100, 'Maximum # of training epochs')
+        self.flags.DEFINE_integer('max_epochs', 500, 'Maximum # of training epochs')
         # 每100个批次的训练状态
         self.flags.DEFINE_integer('display_freq', 10, 'Display training status every this iteration')
         self.flags.DEFINE_integer('eval_freq', 500, 'Display training status every this iteration')
@@ -78,8 +78,8 @@ class model_parameter:
         # model & prepare the dataset
         # self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
-        # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'model name')
-        self.flags.DEFINE_string('model_name', "THP", 'model name')
+        self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy", 'model name')
+        # self.flags.DEFINE_string('model_name', "THP", 'model name')
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
@@ -90,12 +90,12 @@ class model_parameter:
 
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
-        self.flags.DEFINE_integer('sims_len',5,'max number of samples')
+        self.flags.DEFINE_integer('sims_len',10,'max number of samples')
         self.flags.DEFINE_string('integral_cal','NU','the method to calculate integral')
 
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
         self.flags.DEFINE_string('data_name','mimic_fold3','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
