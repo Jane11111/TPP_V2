@@ -86,7 +86,7 @@ class Train_main_process:
 
         global_step_lr = tf.Variable(0, trainable=False)
         decay_rate = tf.train.exponential_decay(
-            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=0.95,
+            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=1,
             staircase=True)
 
         with self.sess.as_default():

@@ -78,8 +78,6 @@ class THP(THP_model):
 
         transformer_model = transformer_encoder()
 
-        # with tf.variable_scope('history_encoding',reuse=tf.AUTO_REUSE):
-        #     X = self.type_lst_embedding + self.time_lst_embedding
 
         with tf.variable_scope('transformer_encoding',reuse=tf.AUTO_REUSE):
             S = transformer_model.stack_multihead_self_attention(stack_num=self.FLAGS.THP_stack_num,
@@ -96,8 +94,6 @@ class THP(THP_model):
                                                                  ) # batch_size, seq_len, M
         with tf.variable_scope('hidden_emb_cal',reuse=tf.AUTO_REUSE): # TODO 这一部分可以删除
             M = self.FLAGS.THP_M
-            # MH = self.FLAGS.THP_MH
-            # H = self.hidden_emb_generation(S=S, M = M, MH = MH) # batch_size, seq_len, M
 
             discrete_emb = gather_indexes(batch_size=self.now_batch_size,
                            seq_length=self.max_seq_len,
