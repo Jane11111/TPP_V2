@@ -258,7 +258,7 @@ class Type_Aware_Attention():
 
     def type_aware_vanilla_attention(self, enc, dec, num_units, num_heads, num_blocks, dropout_rate, is_training, reuse,
                           key_length, query_length,
-                                     time_last_lst):
+                                      ):
         """
 
         :param enc:
@@ -271,7 +271,6 @@ class Type_Aware_Attention():
         :param reuse:
         :param key_length:
         :param query_length:
-        :param time_last_lst: # batch_size, seq_len
         :return:
         """
         # dec = tf.expand_dims(dec, 1)#在1的位置上增加1维

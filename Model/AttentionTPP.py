@@ -238,8 +238,19 @@ class MTAM_TPP_wendy(AttentionTPP_model):
             #                                    sequence_tensor=self.short_term_intent_temp2,
             #                                    positions=self.mask_index - 1)  # batch_size, num_units
 
-
-
+            # type_enc, type_att_vec = self.type_aware_attention.type_aware_vanilla_attention(enc = self.type_lst_embedding,
+            #                                                                       dec = tf.expand_dims(self.target_type_embedding,axis=1),
+            #                                                                       num_units=self.num_units,
+            #                                                                       num_heads=self.num_heads,
+            #                                                                       num_blocks=self.num_blocks,
+            #                                                                       dropout_rate=self.dropout_rate,
+            #                                                                       is_training=True,
+            #                                                                       reuse=None,
+            #                                                                       key_length=self.seq_len - 1, # 不考虑那个mask位了
+            #                                                                       query_length = tf.ones_like(self.seq_len),
+            #                                                                       )
+            #
+            # att_vec = tf.reshape(att_vec,shape= [-1,self.max_seq_len])
 
         return layer_norm(predict_lambda_emb), predict_emb_for_time
 
@@ -249,6 +260,7 @@ class MTAM_TPP_wendy(AttentionTPP_model):
         self.attention = Attention()
         self.gru_net_ins = GRU()
         self.transformer_model = transformer_encoder()
+        self.type_aware_attention = Type_Aware_Attention()
 
         predict_target_lambda_emb,predict_emb_for_time  = self.get_emb(self.target_time,self.target_time_last_lst,self.target_time_now_lst)
 
@@ -288,7 +300,12 @@ class MTAM_TPP_wendy(AttentionTPP_model):
             time_predictor = thp_time_predictor()
             self.predict_time = time_predictor.predict_time(emb=emb_for_time,
                                                             num_units=self.FLAGS.THP_M)  # batch_size, 1
-
+            # self.predict_time_interval = tf.reduce_sum(self.time_lst * emb_for_time, axis=1)# batch_size, 1
+            # col_idx = self.mask_index - 1
+            # row_idx = tf.reshape(tf.range(start=0, limit=self.now_batch_size, delta=1), [-1, 1])
+            # idx = tf.concat([row_idx, col_idx], axis=1)
+            # last_time = tf.gather_nd(self.time_lst, idx)
+            # self.predict_time = tf.reshape(self.predict_time_interval,[-1,1]) + tf.reshape(last_time,[-1,1])
 
             type_predictor = thp_type_predictor()
             self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,

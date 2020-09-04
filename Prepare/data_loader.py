@@ -29,8 +29,8 @@ class DataLoader():
         with open(file_path , 'r') as f:
             l = f.readline()
             while l:
-                #if count>10000:
-                    #break
+                # if count>50000:# TODO 只保留10w的数据
+                #     break
                 tmp = eval(l)
                 max_type = max( max_type,np.max(tmp[0]))
                 if tmp[4]  < 2:
