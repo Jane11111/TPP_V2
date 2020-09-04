@@ -8,6 +8,7 @@ from Model.Modules.gru import GRU
 from Model.base_model import base_model
 from Model.Modules.net_utils import gather_indexes, layer_norm
 from Model.Modules.time_aware_attention import Time_Aware_Attention
+from Model.Modules.type_aware_attention import Type_Aware_Attention
 from Model.Modules.intensity_calculation import mlt_intensity,single_intensity,e_intensity,thp_intensity_calculation
 from Model.Modules.type_prediction import thp_type_predictor
 from Model.Modules.time_prediction import thp_time_predictor
@@ -172,13 +173,8 @@ class MTAM_TPP_wendy(AttentionTPP_model):
     def get_emb (self,target_time,time_last,time_now):
         with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
 
-            # history_emb = tf.layers.dense(inputs = tf.concat([self.type_lst_embedding,self.time_lst_embedding],axis = 2),
-            #                               units=self.num_units,
-            #                               activation=tf.nn.relu, use_bias=False,
-            #                               kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-5),
-            #                               name='dense4emb'
-            #                               ) # TODO 这个把seq_len这一位也输入，有问题吗？是不是输出batch_size, seq_len, num_units
-            time_aware_gru_net_input = tf.concat([self.type_lst_embedding ,  # TODO 这里加 time_lst_embedding
+
+            time_aware_gru_net_input = tf.concat([self.type_lst_embedding,  # TODO 这里加 time_lst_embedding
                                               tf.expand_dims(time_last, 2),
                                               tf.expand_dims(time_now, 2)],
                                              axis=2)
@@ -212,57 +208,40 @@ class MTAM_TPP_wendy(AttentionTPP_model):
                                                                  )
             predict_lambda_emb = tf.reshape(predict_lambda_emb,[-1,self.num_units])
         with tf.variable_scope('emb_for_time',reuse= tf.AUTO_REUSE):
-            # predict_emb_for_time = self.attention.vanilla_attention(enc=self.type_lst_embedding,
-            #                                                      dec=short_term_intent4vallina,
-            #                                                      num_units=self.num_units,
-            #                                                      num_heads=self.num_heads,
-            #                                                      num_blocks=self.num_blocks,
-            #                                                      dropout_rate=self.dropout_rate,
-            #                                                      is_training=True,
-            #                                                      reuse=False,
-            #                                                      key_length=self.seq_len, # TODO 这里为什么不减去1
-            #                                                      query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
-            #                                                                                dtype=tf.int32),
-            #                                                      )
-            # with tf.variable_scope('transformer_encoding', reuse=tf.AUTO_REUSE):
-            #     S = self.transformer_model.stack_multihead_self_attention(stack_num=self.FLAGS.THP_stack_num,
-            #                                                          type_enc=self.type_lst_embedding,
-            #                                                          time_enc=self.time_lst_embedding,
-            #                                                          M=self.FLAGS.THP_M,
-            #                                                          Mk=self.FLAGS.THP_Mk,
-            #                                                          Mv=self.FLAGS.THP_Mv,
-            #                                                          Mi=self.FLAGS.THP_Mi,
-            #                                                          L=self.max_seq_len,
-            #                                                          N=self.now_batch_size,
-            #                                                          head_num=self.FLAGS.THP_head_num,
-            #                                                          dropout_rate=self.dropout_rate,
-            #                                                          )  # batch_size, seq_len, M
-            # with tf.variable_scope('hidden_emb_cal', reuse=tf.AUTO_REUSE):
-            #     M = self.FLAGS.THP_M
-            #
-            #     predict_emb_for_time = gather_indexes(batch_size=self.now_batch_size,
-            #                                   seq_length=self.max_seq_len,
-            #                                   width=M,
-            #                                   sequence_tensor=S,
-            #                                   positions=self.mask_index - 1)
-            # predict_emb_for_time = tf.reshape(predict_emb_for_time, [-1,self.num_units])
-
-            time_aware_gru_net_input2 = tf.concat([self.time_lst_embedding,  # TODO 这里加 time_lst_embedding
-                                                  tf.expand_dims(time_last, 2),
-                                                  tf.expand_dims(time_now, 2)],
-                                                 axis=2)
-            self.short_term_intent_temp2 = self.gru_net_ins.time_aware_gru_net(hidden_units=self.num_units,
-                                                                              input_data=time_aware_gru_net_input2,
-                                                                              input_length=tf.add(self.seq_len, -1),  #
-                                                                              type='new',
-                                                                              scope='gru')
+            #使用self-attention生成time的embedding L-1位的emb预测L位时间
+            time_self_att_output = self.attention.self_attention(enc=self.time_lst_embedding,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=None,
+                                                                 key_length = self.seq_len-1, # 只能看到seq_len-1这么长的记录
+                                                                 query_length=self.seq_len) # batch_size, seq_len, num_units
             predict_emb_for_time = gather_indexes(batch_size=self.now_batch_size,
-                                               seq_length=self.max_seq_len,
-                                               width=self.num_units,
-                                               sequence_tensor=self.short_term_intent_temp2,
-                                               positions=self.mask_index - 1)
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=time_self_att_output,
+                                           positions=self.mask_index -1) # 取上一个时间的emb预测事件发生时间
+            # time_aware_gru_net_input2 = tf.concat([self.time_lst_embedding,  # TODO 这里加 time_lst_embedding
+            #                                       tf.expand_dims(time_last, 2),
+            #                                       tf.expand_dims(time_now, 2)],
+            #                                      axis=2)
+            # self.short_term_intent_temp2 = self.gru_net_ins.time_aware_gru_net(hidden_units=self.num_units,
+            #                                                                   input_data=time_aware_gru_net_input2,
+            #                                                                   input_length=tf.add(self.seq_len, -1),  #
+            #                                                                   type='new',
+            #                                                                   scope='gru')
+            # predict_emb_for_time = gather_indexes(batch_size=self.now_batch_size,
+            #                                    seq_length=self.max_seq_len,
+            #                                    width=self.num_units,
+            #                                    sequence_tensor=self.short_term_intent_temp2,
+            #                                    positions=self.mask_index - 1)  # batch_size, num_units
 
-        return layer_norm(predict_lambda_emb), predict_emb_for_time,
+
+
+
+        return layer_norm(predict_lambda_emb), predict_emb_for_time
 
 
     def build_model(self):
@@ -309,6 +288,7 @@ class MTAM_TPP_wendy(AttentionTPP_model):
             time_predictor = thp_time_predictor()
             self.predict_time = time_predictor.predict_time(emb=emb_for_time,
                                                             num_units=self.FLAGS.THP_M)  # batch_size, 1
+
 
             type_predictor = thp_type_predictor()
             self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,

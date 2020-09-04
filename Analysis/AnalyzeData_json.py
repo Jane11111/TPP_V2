@@ -7,7 +7,7 @@ import json
 
 if __name__ == "__main__":
 
-    root = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
+    root = "D://Project/TPP_V2/data/origin_data/data_retweet/"
     sample_count = 0
     train_test_count = [0,0,0]
     train_test_seq_len = [0,0,0]
