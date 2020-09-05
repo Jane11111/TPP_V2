@@ -91,12 +91,12 @@ class model_parameter:
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
-        self.flags.DEFINE_string('integral_cal','NU','the method to calculate integral')
+        self.flags.DEFINE_string('integral_cal','MC','the method to calculate integral')
 
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
-        self.flags.DEFINE_string('data_name','mimic_fold3','the type of the dataset')
+        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_string('data_name','hawkes','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')

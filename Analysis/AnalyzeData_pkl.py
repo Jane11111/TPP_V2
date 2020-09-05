@@ -3,11 +3,11 @@
 # @Author  : zxl
 # @FileName: AnalyzeData_json.py
 
-import json
+import pickle
 
 if __name__ == "__main__":
 
-    root = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
+    root = "D://Project/TPP_V2/data/origin_data/data_so/fold5/"
     sample_count = 0
     train_test_count = [0,0,0]
     train_test_seq_len = [0,0,0]
@@ -16,13 +16,13 @@ if __name__ == "__main__":
     min_seq_len = 1000
     type_dic = {}
 
-    for idx, filename in enumerate(['train.json','dev.json','test.json']):
+    for idx, filename in enumerate(['train.pkl','dev.pkl','test.pkl']):
         file_path = root + filename
-        key = filename[:-5]
+        key = filename[:-4]
 
 
-        with open(file_path,'r') as f:
-            json_obj = json.load(f)
+        with open(file_path,'rb') as f:
+            json_obj = pickle.load(f,encoding='latin-1')
         seq_lst = json_obj[key]
 
         for seq in seq_lst:
@@ -39,6 +39,6 @@ if __name__ == "__main__":
                 type_dic[type] += 1
 
 
-    print(' seq count: %d,event_count: %d, train count : %d, dev count : %d,test count: %d,type_num:%d, max seq len: %d, min seq len: %d,avg seq len: %.2f' % \
+    print('seq count: %d,event_count: %d, train count : %d, dev count : %d,test count: %d,type_num:%d, max seq len: %d, min seq len: %d,avg seq len: %.2f' % \
           (sample_count, sum(train_test_count),train_test_count[0],train_test_count[1],train_test_count[2],len(type_dic), max_seq_len, min_seq_len, total_seq_len / sample_count))
     print('train_seq_len: %d, dev_seq_len: %d, test_seq_len: %d'%(train_test_seq_len[0],train_test_seq_len[1],train_test_seq_len[2]))
