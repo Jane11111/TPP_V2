@@ -103,7 +103,7 @@ class base_model(object):
         input_dic[self.learning_rate] = learning_rate
         input_dic[self.llh_decay_rate] = llh_decay_rate
         input_dic[self.now_batch_size] = len(batch_data)
-
+        outputs = sess.run([self.test], input_dic)
         output_feed = [
                        self.loss,
                        self.log_likelihood,self.time_likelohood,self.type_likelihood,

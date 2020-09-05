@@ -17,7 +17,7 @@ from DataHandle.get_input_data import DataInput
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
 from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, \
-    MTAM_TPP_wendy,MTAM_only_time_aware_RNN,Vallina_Gru
+    MTAM_TPP_wendy, MTAM_only_time_aware_RNN, Vallina_Gru, MTAM_TPP_wendy_time
 from Model.THP import THP
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
@@ -107,6 +107,9 @@ class Train_main_process:
                 self.model = Vallina_Gru(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'THP':
                 self.model = THP(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'MTAM_TPP_wendy_time':
+                self.model = MTAM_TPP_wendy_time(self.FLAGS, self.emb, self.sess)
+
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 
@@ -238,7 +241,7 @@ class Train_main_process:
                 rmse_lst.append(rmse)
                 self.logger.info("MAX log likelihood: %.5f, MAX accuracy: %.5f,MIN sqrt mean squared error: %.5f"
                                  % (np.max(llh_lst), np.max(acc_lst), np.min(rmse_lst)))
-                if early_stop >= 5: # 连续5轮都没有最好的结果好
+                if early_stop >= 10: # 连续5轮都没有最好的结果好
                     break
 
                 # self.save_model()

@@ -4,7 +4,7 @@ from tensorflow.python.ops.rnn_cell import MultiRNNCell
 from tensorflow.python.ops.rnn import dynamic_rnn
 import tensorflow as tf
 
-from Model.Modules.time_aware_rnn import TimeAwareGRUCell_sigmoid, TimeAwareGRUCell_decay_new
+from Model.Modules.time_aware_rnn import TimeAwareGRUCell_sigmoid, TimeAwareGRUCell_decay_new, TimeGRUCell
 
 
 class GRU():
@@ -76,6 +76,14 @@ class GRU():
         outputs, _ = dynamic_rnn(cell, inputs=input_data, sequence_length=self.input_length, dtype=tf.float32,scope= scope)
         return outputs
 
+    def time_gru_net(self, hidden_units, input_data, input_length,type,scope='gru'):
+
+        cell = self.build_time_aware_gru_cell_time(hidden_units)
+        #cell = self.build_cell(hidden_units)
+        self.input_length = tf.reshape(input_length, [-1])
+        outputs, _ = dynamic_rnn(cell, inputs=input_data, sequence_length=self.input_length, dtype=tf.float32,scope= scope)
+        return outputs
+
     def build_time_aware_gru_cell_sigmoid(self, hidden_units):
         cell = TimeAwareGRUCell_sigmoid(hidden_units)
         return MultiRNNCell([cell])
@@ -83,6 +91,10 @@ class GRU():
 
     def build_time_aware_gru_cell_new(self, hidden_units):
         cell = TimeAwareGRUCell_decay_new(hidden_units)
+        return MultiRNNCell([cell])
+
+    def build_time_aware_gru_cell_time(self, hidden_units):
+        cell = TimeGRUCell(hidden_units)
         return MultiRNNCell([cell])
 
 

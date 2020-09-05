@@ -21,7 +21,7 @@ class DataLoader():
 
         return [timelast_list,timenow_list]
 
-    def load_data(self,file_path):
+    def load_data(self,file_path,train):
         data_set = []
         count =0
         max_type = 0
@@ -29,8 +29,12 @@ class DataLoader():
         with open(file_path , 'r') as f:
             l = f.readline()
             while l:
-                #if count>10000:
-                    #break
+                if train:
+                    if count>10000:
+                        break
+                else:
+                    if count>1000:
+                        break
                 tmp = eval(l)
                 max_type = max( max_type,np.max(tmp[0]))
                 if tmp[4]  < 2:
@@ -62,8 +66,8 @@ class DataLoader():
             self.write_file(origin_train_path, train_path, 'train')
             self.write_file(origin_test_path, test_path, 'test')
 
-        train_set = self.load_data(train_path)
-        test_set = self.load_data(test_path)
+        train_set = self.load_data(train_path,True)
+        test_set = self.load_data(test_path,False)
         print('train len: %d'%len(train_set))
         print('test len: %d'%len(test_set))
 
