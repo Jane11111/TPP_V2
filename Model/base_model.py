@@ -185,13 +185,8 @@ class base_model(object):
                 self.loss = tf.reduce_mean(self.SE_loss)/scale\
                             + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
                             + tf.reduce_mean(self.cross_entropy_loss)
-            # self.loss = tf.reduce_mean(self.log_likelihood_loss)
-            # self.loss = tf.reduce_mean(self.SE_loss)
-            # self.loss = tf.reduce_mean(self.SE_loss)   \
-            #             + tf.reduce_mean(self.cross_entropy_loss)
-            # self.loss = 10* tf.reduce_mean(self.SE_loss) \
-            #             +self.llh_decay_rate *tf.reduce_mean(self.log_likelihood_loss) \
-            #             + tf.reduce_mean(self.cross_entropy_loss)
+            self.loss = tf.reduce_mean(self.log_likelihood_loss)\
+
             # for metrics
             self.labels = one_hot_type
             # self.target_lambda = target_lambda

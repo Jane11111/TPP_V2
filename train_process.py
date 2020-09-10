@@ -19,6 +19,7 @@ from config.model_parameter import model_parameter
 from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, \
     MTAM_TPP_wendy, MTAM_only_time_aware_RNN, Vallina_Gru, MTAM_TPP_wendy_time
 from Model.THP import THP
+from Model.NHP import NHP
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
 random.seed(1234)
@@ -86,7 +87,7 @@ class Train_main_process:
 
         global_step_lr = tf.Variable(0, trainable=False)
         decay_rate = tf.train.exponential_decay(
-            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=0.99,
+            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=self.FLAGS.llh_decay_rate,
             staircase=True)
 
         with self.sess.as_default():
@@ -109,6 +110,8 @@ class Train_main_process:
                 self.model = THP(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy_time':
                 self.model = MTAM_TPP_wendy_time(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'NHP':
+                self.model = NHP(self.FLAGS,self.emb,self.sess)
 
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
@@ -167,9 +170,9 @@ class Train_main_process:
             count = 0
             learning_rate = self.FLAGS.learning_rate
 
-            llh_lst =[-100]
+            llh_lst =[-100000]
             acc_lst = [0]
-            rmse_lst = [100]
+            rmse_lst = [100000]
 
             early_stop = 0
 
@@ -241,7 +244,7 @@ class Train_main_process:
                 rmse_lst.append(rmse)
                 self.logger.info("MAX log likelihood: %.5f, MAX accuracy: %.5f,MIN sqrt mean squared error: %.5f"
                                  % (np.max(llh_lst), np.max(acc_lst), np.min(rmse_lst)))
-                if early_stop >= 10: # 连续5轮都没有最好的结果好
+                if early_stop >= 5: # 连续5轮都没有最好的结果好
                     break
 
                 # self.save_model()

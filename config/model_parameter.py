@@ -11,8 +11,8 @@ class model_parameter:
         self.flags.DEFINE_integer('hidden_units', 8, 'Number of hidden units in each layer')
         self.flags.DEFINE_integer('num_blocks', 3, 'Number of blocks in each attention')
         self.flags.DEFINE_integer('num_heads', 1, 'Number of heads in each attention')
-        self.flags.DEFINE_integer('num_units', 64, 'Number of units in each attention')
-        self.flags.DEFINE_integer('type_emb_size', 64, 'Number of units in each attention')
+        self.flags.DEFINE_integer('num_units', 32, 'Number of units in each attention')
+        self.flags.DEFINE_integer('type_emb_size', 32, 'Number of units in each attention')
         self.flags.DEFINE_list('layers',[],'layer units of intensity calculation network')
         self.flags.DEFINE_float('dropout', 0.1, 'Dropout probability(0.0: no dropout)')
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
@@ -31,12 +31,13 @@ class model_parameter:
         self.flags.DEFINE_string('optimizer', 'adam', 'Optimizer for training: (adadelta, adam, rmsprop,sgd*)')
         self.flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
         self.flags.DEFINE_float('decay_rate', 0.001, 'decay rate')
+        self.flags.DEFINE_float('llh_decay_rate', 1, 'decay rate')
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
         # 训练批次32
-        self.flags.DEFINE_integer('train_batch_size', 256, 'Training Batch size')
+        self.flags.DEFINE_integer('train_batch_size', 8, 'Training Batch size')
         # 测试批次128
-        self.flags.DEFINE_integer('test_batch_size', 500, 'Testing Batch size')
+        self.flags.DEFINE_integer('test_batch_size', 8, 'Testing Batch size')
         # 最大迭代次数
         self.flags.DEFINE_integer('max_epochs', 500, 'Maximum # of training epochs')
         # 每100个批次的训练状态
@@ -78,8 +79,9 @@ class model_parameter:
         # model & prepare the dataset
         # self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
-        self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_time", 'model name')
+        # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_time", 'model name')
         # self.flags.DEFINE_string('model_name', "THP", 'model name')
+        self.flags.DEFINE_string('model_name', "NHP", 'model name')
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
@@ -96,7 +98,7 @@ class model_parameter:
 
         #prepare data
         self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
-        self.flags.DEFINE_string('data_name','hawkes','the type of the dataset')
+        self.flags.DEFINE_string('data_name','mimic_fold3','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')
         self.flags.DEFINE_string('out_data_root_path', 'D://Project/TPP_V2/data/training_testing_data/data_event/', 'the root path of the dataset')
@@ -117,19 +119,19 @@ class model_parameter:
             self.flags.FLAGS.type_num = 3
             # self.flags.FLAGS.max_length_seq = 264
             self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_retweet/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_retweet/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_retweet/"
+            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_retweet/"
+            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_retweet/"
+            # self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
+            # self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_retweet/"
 
         elif type == 'hawkes':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 20
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
+            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_hawkes/"
+            # self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
+            # self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
         elif type == 'hawkesinhib':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
@@ -169,8 +171,8 @@ class model_parameter:
             self.flags.FLAGS.max_seq_len = 50
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_mimic/fold3/"
-            self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_mimic/fold3/"
+            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
+            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold3/"
         elif type == 'mimic_fold4':
             self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
@@ -195,6 +197,14 @@ class model_parameter:
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/total/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/total/"
+        elif type == 'so':
+            self.flags.FLAGS.type_num = 22
+            # self.flags.FLAGS.max_length_seq = 100
+            self.flags.FLAGS.max_seq_len = 20
+            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_so/fold4/"
+            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_so/fold4/"
+            # self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
+            # self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
 
         return  self.flags
 

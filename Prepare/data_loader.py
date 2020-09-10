@@ -29,12 +29,12 @@ class DataLoader():
         with open(file_path , 'r') as f:
             l = f.readline()
             while l:
-                if train:
-                    if count>10000:
-                        break
-                else:
-                    if count>1000:
-                        break
+                # if train:
+                #     if count>10000:
+                #         break
+                # else:
+                #     if count>1000:
+                #         break
                 tmp = eval(l)
                 max_type = max( max_type,np.max(tmp[0]))
                 if tmp[4]  < 2:
@@ -42,7 +42,7 @@ class DataLoader():
                     continue
                 tmp.append(self.pro_time_method(tmp[1],tmp[3]))
                 sim_time_list = []
-                for t in tmp[7]:
+                for t in tmp[7]: # sims_time_lst
                     sim_time_list.append(self.pro_time_method(tmp[1],t))
 
                 tmp.append(sim_time_list)

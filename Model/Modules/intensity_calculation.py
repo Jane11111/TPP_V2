@@ -212,4 +212,69 @@ class thp_intensity_calculation():
         return sims_intensity
 
 
+class nhp_intensity_calculation():
+
+    def __init__(self):
+        pass
+
+    def cal_intensity(self,hidden_emb,type):
+        """
+
+        :param hidden_emb: N, num_units
+        :param time_interval: N,1
+        :param last_time: N,1
+        :param type: int
+        :return:
+        """
+        with tf.variable_scope('intensity_calculation'):
+            num_units = hidden_emb.shape[1]
+            wk = tf.get_variable('wk_'+str(type),shape = [num_units,1])
+            # alpha_k = tf.get_variable('alpha_k_'+str(type), shape = [1])
+            alpha_k = - 0.1 # 论文里面将其设置为固定值
+            bk = tf.get_variable('bk_'+str(type), shape = [1])
+
+
+            raw_lambda =  tf.matmul(hidden_emb,wk) + bk
+
+
+            lambda_val = tf.nn.softplus(raw_lambda) # batch_size, 1
+        return lambda_val
+
+
+
+    def cal_target_intensity(self,hidden_emb,type_num):
+        """
+
+        :param hidden_emb: batch_size, num_units
+        :param type_num: int
+        :return:
+        """
+        lst = []
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(hidden_emb= hidden_emb,
+                                               type = type)
+            lst.append(cur_intensity)
+        target_intensity = tf.concat(lst, axis = 1) # batch_size, type_num
+        return target_intensity
+
+
+    def cal_sims_intensity(self,hidden_emb,sims_len,type_num):
+        """
+        :param hidden_emb: batch_size,seq_len, num_units
+        :param sims_len: int
+        :param type_num: int
+        :return:
+        """
+        num_units = hidden_emb.shape [-1]
+
+        hidden_emb = tf.reshape(hidden_emb,[-1,num_units]) # batch_size * sims_len , num_units
+
+        lst = []
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(hidden_emb=hidden_emb,
+                                               type = type) # batch_size * sims_len , 1
+            lst.append(cur_intensity)
+        sims_intensity = tf.concat(lst, axis = 1) # batch_size * sims_len, type_num
+        sims_intensity = tf.reshape(sims_intensity,[-1,sims_len, type_num])
+        return sims_intensity
 

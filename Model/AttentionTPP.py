@@ -319,13 +319,7 @@ class MTAM_TPP_wendy_time(AttentionTPP_model):
     def get_emb (self,target_time,time_last,time_now):
         with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
 
-            # history_emb = tf.layers.dense(inputs = tf.concat([self.type_lst_embedding,self.time_lst_embedding],axis = 2),
-            #                               units=self.num_units,
-            #                               activation=tf.nn.relu, use_bias=False,
-            #                               kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-5),
-            #                               name='dense4emb'
-            #                               ) # TODO 这个把seq_len这一位也输入，有问题吗？是不是输出batch_size, seq_len, num_units
-            time_aware_gru_net_input = tf.concat([self.type_lst_embedding ,  # TODO 这里加 time_lst_embedding
+            time_aware_gru_net_input = tf.concat([self.type_lst_embedding ,
                                               tf.expand_dims(time_last, 2),
                                               tf.expand_dims(time_now, 2)],
                                              axis=2)
@@ -339,8 +333,8 @@ class MTAM_TPP_wendy_time(AttentionTPP_model):
                                            width=self.num_units,
                                            sequence_tensor=self.short_term_intent_temp,
                                            positions=self.mask_index -1 )#batch_size, num_units
-            interval = short_term_intent[:,-1]
-            short_term_intent = short_term_intent[:,:-1]
+            interval = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
             short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
             short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
         with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
@@ -362,15 +356,15 @@ class MTAM_TPP_wendy_time(AttentionTPP_model):
                                                                  )
             predict_lambda_emb = tf.reshape(predict_lambda_emb,[-1,self.num_units])
         with tf.variable_scope('emb_for_time',reuse= tf.AUTO_REUSE):
-            self.predict_emb_for_time = gather_indexes(batch_size=self.now_batch_size,
+            self.last_time = gather_indexes(batch_size=self.now_batch_size,
                                                seq_length=self.max_seq_len,
                                                width=1,
                                                sequence_tensor=self.time_lst,
-                                               positions=self.mask_index - 1)
-            self.interval = tf.reshape(interval,[-1,1])
+                                               positions=self.mask_index - 1)# 上一个时间
+            self.interval = tf.reshape(interval,[-1,1])# batch_size, 1
 
 
-        return layer_norm(predict_lambda_emb), self.predict_emb_for_time+self.interval
+        return layer_norm(predict_lambda_emb), self.last_time+self.interval
 
 
     def build_model(self):
@@ -420,7 +414,7 @@ class MTAM_TPP_wendy_time(AttentionTPP_model):
 
             type_predictor = thp_type_predictor()
             self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
-                                                                 num_units=self.FLAGS.THP_M,
+                                                                 num_units=self.num_units,
                                                                  type_num=self.type_num)
         self.output()
 
