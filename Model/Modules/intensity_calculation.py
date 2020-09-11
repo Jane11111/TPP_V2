@@ -278,3 +278,46 @@ class nhp_intensity_calculation():
         sims_intensity = tf.reshape(sims_intensity,[-1,sims_len, type_num])
         return sims_intensity
 
+class rmtpp_density_calculation():
+    def __init__(self):
+        pass
+
+    def cal_density(self,hidden_emb,time_interval ):
+        """
+
+        :param hidden_emb: N, num_units
+        :param time_interval: N,1
+        :param last_time: N,1
+        :param type: int
+        :return: batch_size,1
+        """
+        num_units = hidden_emb.shape[1]
+        dtype = hidden_emb.dtype
+        with tf.variable_scope('density_calculation'):
+            vt = tf.get_variable("vt", shape=[num_units, 1], dtype=dtype)  # input_size, num_units
+            wt = tf.get_variable("wt", shape=[1, 1], dtype=dtype)  # input_size, num_units
+            bt = tf.get_variable("bt", shape=[1,1], dtype=dtype)  # input_size, num_units
+
+        intensity_val = tf.matmul(hidden_emb,vt) + wt * time_interval + bt
+        f_val = intensity_val + 1/(wt+1e-9) * tf.exp(tf.matmul(hidden_emb,vt) + bt) - 1/(wt+1e-9) * tf.exp(intensity_val)
+        f_val = tf.exp(f_val)
+
+
+        return f_val
+
+
+
+    def cal_target_density(self,hidden_emb,target_time, last_time):
+        """
+
+        :param hidden_emb: batch_size, num_units
+        :param target_time: batch_size,
+        :param last_time: batch_size,
+        :param type_num: int
+        :return:
+        """
+        interval = tf.expand_dims(target_time-last_time, axis=1)
+
+        f_val = self.cal_density(hidden_emb=hidden_emb,time_interval=interval)
+
+        return f_val

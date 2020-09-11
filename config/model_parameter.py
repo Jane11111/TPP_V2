@@ -81,7 +81,8 @@ class model_parameter:
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_time", 'model name')
         # self.flags.DEFINE_string('model_name', "THP", 'model name')
-        self.flags.DEFINE_string('model_name', "NHP", 'model name')
+        # self.flags.DEFINE_string('model_name', "NHP", 'model name')
+        self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')

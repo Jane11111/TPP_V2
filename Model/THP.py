@@ -139,7 +139,9 @@ class THP(THP_model):
             self.predict_type_prob = type_predictor.predict_type(emb = emb_for_type,
                                                             num_units=self.FLAGS.THP_M,
                                                             type_num = self.type_num) # batch_size, type_num
-            # self.predict_type_prob = self.target_lambda
+
+
+
         self.output()
 
 

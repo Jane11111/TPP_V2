@@ -103,7 +103,7 @@ class base_model(object):
         input_dic[self.learning_rate] = learning_rate
         input_dic[self.llh_decay_rate] = llh_decay_rate
         input_dic[self.now_batch_size] = len(batch_data)
-        outputs = sess.run([self.test], input_dic)
+
         output_feed = [
                        self.loss,
                        self.log_likelihood,self.time_likelohood,self.type_likelihood,
@@ -142,7 +142,6 @@ class base_model(object):
 
             """type"""
             # self.predict_type_prob, batch_size,  num_units
-            self.predict_type_prob = tf.matmul(self.predict_type_prob,self.embedding.type_emb_lookup_table[:-3,:],transpose_b=True)
             self.predict_type_prob = tf.nn.softmax(self.predict_type_prob)
             log_probs = tf.log (self.predict_type_prob + 1e-9)
             self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size,
@@ -185,7 +184,7 @@ class base_model(object):
                 self.loss = tf.reduce_mean(self.SE_loss)/scale\
                             + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
                             + tf.reduce_mean(self.cross_entropy_loss)
-            self.loss = tf.reduce_mean(self.log_likelihood_loss)\
+            # self.loss = tf.reduce_mean(self.log_likelihood_loss)\
 
             # for metrics
             self.labels = one_hot_type

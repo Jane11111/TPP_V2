@@ -45,10 +45,10 @@ class ContinuousLSTMCell(RNNCell):
         sigmoid = math_ops.sigmoid
         dtype = inputs.dtype
 
-        k = inputs[:,:-2]
+        k = inputs[:,:-1]
         time_last = tf.expand_dims(inputs[:,-1],axis=1)# 当前时间与上次时间的间隔
 
-        inputs = inputs[:,:-2]
+        inputs = inputs[:,:-1]
         input_size = inputs.get_shape().with_rank(2)[1]
 
         o_i,c_i,c_i_bar,delta_i,_ = array_ops.split(value=state,num_or_size_splits=5,axis=1)

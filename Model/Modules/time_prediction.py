@@ -24,3 +24,4 @@ class thp_time_predictor():
 
             times = tf.matmul(emb,W_time) + b_time
         return times
+

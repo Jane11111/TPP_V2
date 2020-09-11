@@ -16,10 +16,10 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import AttentionTPP_MLT, AttentionTPP, MTAM_TPP_W, MTAM_TPP_E, \
-    MTAM_TPP_wendy, MTAM_only_time_aware_RNN, Vallina_Gru, MTAM_TPP_wendy_time
+from Model.AttentionTPP import MTAM_TPP_wendy_time
 from Model.THP import THP
 from Model.NHP import NHP
+from Model.RMTPP import RMTPP
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
 random.seed(1234)
@@ -92,26 +92,14 @@ class Train_main_process:
 
         with self.sess.as_default():
 
-            if self.FLAGS.model_name == 'AttentionTPP_MLT':
-                self.model = AttentionTPP_MLT(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'AttentionTPP':
-                self.model = AttentionTPP(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'MTAM_TPP_W':
-                self.model = MTAM_TPP_W(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'MTAM_TPP_E':
-                self.model = MTAM_TPP_E(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'MTAM_TPP_wendy':
-                self.model = MTAM_TPP_wendy(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'MTAM_only_time_aware_RNN':
-                self.model = MTAM_only_time_aware_RNN(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'Vallina_Gru':
-                self.model = Vallina_Gru(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'THP':
+            if self.FLAGS.model_name == 'THP':
                 self.model = THP(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy_time':
                 self.model = MTAM_TPP_wendy_time(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'NHP':
                 self.model = NHP(self.FLAGS,self.emb,self.sess)
+            elif self.FLAGS.model_name == 'RMTPP':
+                self.model = RMTPP(self.FLAGS,self.emb,self.sess)
 
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 

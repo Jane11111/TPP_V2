@@ -52,11 +52,10 @@ class NHP_model(base_model):
 
 class NHP(NHP_model):
 
-    def get_state(self,time_last,time_now):
+    def get_state(self,time_last):
         with tf.variable_scope('cstm_get_emb',reuse=tf.AUTO_REUSE):
             ctsm_input = tf.concat([self.type_lst_embedding,
-                                    tf.expand_dims(time_last, 2),
-                                    tf.expand_dims(time_now, 2)],
+                                    tf.expand_dims(time_last, 2)],
                                     axis=2) # TODO 需要修改输入
 
             output = self.ctsm_model.ctsm_net(hidden_units=self.num_units,
@@ -95,7 +94,7 @@ class NHP(NHP_model):
         last_time = tf.gather_nd(self.time_lst, idx) # target_time的上一个时间
 
 
-        o_i, c_i, c_i_bar, delta_i, h_i_minus = self.get_state(self.target_time_last_lst,self.target_time_now_lst)
+        o_i, c_i, c_i_bar, delta_i, h_i_minus = self.get_state(self.target_time_last_lst)
 
         predict_target_lambda_emb = self.cal_ht(o_i, c_i, c_i_bar, delta_i,self.target_time-last_time)
 
@@ -140,6 +139,8 @@ class NHP(NHP_model):
             self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
                                                                  num_units=self.num_units,
                                                                  type_num=self.type_num)
+            self.predict_type_prob = tf.matmul(self.predict_type_prob, self.embedding.type_emb_lookup_table[:-3, :],
+                                               transpose_b=True)
         self.output()
 
 

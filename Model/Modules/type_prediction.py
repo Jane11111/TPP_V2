@@ -20,10 +20,33 @@ class thp_type_predictor():
         """
 
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-            W_type = tf.get_variable('W_type', shape=(num_units, num_units))
-            b_type = tf.get_variable('b_type', shape = (num_units,))
+            W_type = tf.get_variable('W_type', shape=(num_units, type_num))
+            b_type = tf.get_variable('b_type', shape = (type_num,))
 
             predict_type_probs = tf.matmul(emb, W_type) + b_type
             # predict_type_probs = tf.nn.softmax(types)
         return predict_type_probs
         # return emb
+
+
+class e_type_predictor():
+
+    def __init__(self):
+        pass
+
+    def predict_type(self, emb, num_units, type_num, type_table,scope='type_prediction'):
+        """
+
+        :param emb: batch_size, num_units
+        :return:
+        """
+
+        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+            W_type = tf.get_variable('W_type', shape=(num_units, num_units))
+            b_type = tf.get_variable('b_type', shape = (num_units,))
+
+            predict_type_probs = tf.matmul(emb, W_type) + b_type
+        predict_type_probs = tf.matmul(predict_type_probs,type_table[:type_num,:],transpose_b=True)
+        return predict_type_probs
+
+
