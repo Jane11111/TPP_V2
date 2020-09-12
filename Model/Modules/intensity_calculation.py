@@ -147,8 +147,8 @@ class thp_intensity_calculation():
             alpha_k = - 0.1 # 论文里面将其设置为固定值
             bk = tf.get_variable('bk_'+str(type), shape = [1])
 
-
-            raw_lambda = alpha_k * (time_interval /(last_time )) + tf.matmul(hidden_emb,wk) + bk
+            # TODO 应该在这里将last_time + 1不然计算的interval 会错误
+            raw_lambda = alpha_k * (time_interval /(last_time + 1 )) + tf.matmul(hidden_emb,wk) + bk
             # TODO
             # raw_lambda = tf.matmul(hidden_emb,wk)
 
@@ -210,6 +210,74 @@ class thp_intensity_calculation():
         sims_intensity = tf.concat(lst, axis = 1) # batch_size * sims_len, type_num
         sims_intensity = tf.reshape(sims_intensity,[-1,sims_len, type_num])
         return sims_intensity
+
+class sahp_intensity_calculation():
+
+    def __init__(self,mu,eta,gamma):
+        self.mu = mu
+        self.eta = eta
+        self.gamma = gamma
+
+
+    def cal_intensity(self,time_interval,type):
+        """
+        :param time_interval: N,1
+        :param type: int
+        :return:
+        """
+        with tf.variable_scope('intensity_calculation'+'_'+str(type)):
+            raw_lambda = self.mu +(self.eta-self.mu) * tf.exp(-self.gamma * (time_interval))
+
+            lambda_val = tf.nn.softplus(raw_lambda) # batch_size, 1
+        return lambda_val
+
+
+
+    def cal_target_intensity(self,target_time, last_time,type_num):
+        """
+
+        :param hidden_emb: batch_size, num_units
+        :param target_time: batch_size,
+        :param last_time: batch_size,
+        :param type_num: int
+        :return:
+        """
+        lst = []
+        target_time = tf.reshape(target_time, shape = (-1,1))
+        last_time = tf.reshape(last_time, shape = (-1,1))
+        time_interval = target_time - last_time
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(time_interval= time_interval,
+                                               type = type)
+            lst.append(cur_intensity)
+        target_intensity = tf.concat(lst, axis = 1) # batch_size, type_num
+        return target_intensity
+
+
+    def cal_sims_intensity(self,sims_time, last_time, sims_len,type_num):
+        """
+
+        :param sims_time: batch_size, sims_len
+        :param last_time: batch_size,
+        :param sims_len: int
+        :param type_num: int
+        :return:
+        """
+        last_time = tf.reshape(last_time, [-1,1])
+        last_time = tf.tile(last_time, [1, sims_len])
+        sims_time = tf.reshape(sims_time,[-1,1]) # batch_size * sims_len , 1
+        last_time = tf.reshape(last_time, [-1,1]) # batch_size * sims_len , 1
+        time_interval = sims_time - last_time # batch_size * sims_len , 1
+
+        lst = []
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(time_interval=time_interval,
+                                               type = type) # batch_size * sims_len , 1
+            lst.append(cur_intensity)
+        sims_intensity = tf.concat(lst, axis = 1) # batch_size * sims_len, type_num
+        sims_intensity = tf.reshape(sims_intensity,[-1,sims_len, type_num])
+        return sims_intensity
+
 
 
 class nhp_intensity_calculation():

@@ -7,19 +7,20 @@ import numpy as np
 import tensorflow as tf
 
 from Model.Modules.net_utils import gather_indexes, layer_norm
-
-now_batch_size = 3
-time_lst = tf.constant([[1,2,3,4],
-                         [5,6,7,8],
-                         [9,10,0,0]])
-mask_index = tf.constant([[3],
-                          [3],
-                          [1]])
+from Model.Modules.net_utils import gather_indexes
 
 
-col_idx = mask_index - 1
-row_idx = tf.reshape(tf.range(start=0, limit=now_batch_size, delta=1), [-1, 1])
-idx = tf.concat([row_idx, col_idx], axis=1)
-last_time = tf.gather_nd(time_lst, idx)
+batch_size = 2
+L = 5
+num_units = 4
+a = tf.constant([[1,1,2,3,0],
+                 [2,3,4,0,0]])
+seq_len = tf.constant([4,3])
+mask_index = tf.expand_dims(seq_len-1, axis = 1)
+res = tf.squeeze(gather_indexes(batch_size=batch_size,
+                     seq_length=L,
+                     width = 1,
+                     sequence_tensor=tf.expand_dims(a,axis = -1),
+                     positions = mask_index-1))
 with tf.Session() as sess:
-    print(sess.run(last_time))
+    print(sess.run(res))

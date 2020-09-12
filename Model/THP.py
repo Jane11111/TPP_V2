@@ -92,14 +92,13 @@ class THP(THP_model):
                                                                  head_num=self.FLAGS.THP_head_num,
                                                                  dropout_rate=self.dropout_rate,
                                                                  ) # batch_size, seq_len, M
-        with tf.variable_scope('hidden_emb_cal',reuse=tf.AUTO_REUSE): # TODO 这一部分可以删除
             M = self.FLAGS.THP_M
 
             discrete_emb = gather_indexes(batch_size=self.now_batch_size,
                            seq_length=self.max_seq_len,
                            width=M,
                            sequence_tensor=S,
-                           positions=self.mask_index) # batch_size, M TODO 到底应该取哪一个
+                           positions=self.mask_index-1) # batch_size, M TODO 到底应该取哪一个
             self.predict_target_emb = discrete_emb
         with tf.variable_scope('prepare_emb',reuse=tf.AUTO_REUSE):
 
@@ -112,8 +111,7 @@ class THP(THP_model):
             col_idx = self.mask_index - 1
             row_idx = tf.reshape(tf.range(start=0, limit=self.now_batch_size, delta=1), [-1, 1])
             idx = tf.concat([row_idx, col_idx], axis=1)
-            # TODO 论文里面将分母加了1
-            last_time = tf.gather_nd(self.time_lst, idx) + 1
+            last_time = tf.gather_nd(self.time_lst, idx)
             self.last_time =  last_time    # TODO for testing
 
             intensity_model = thp_intensity_calculation()
