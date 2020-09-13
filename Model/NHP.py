@@ -31,9 +31,11 @@ class NHP_model(base_model):
         self.sims_len = self.FLAGS.sims_len
         self.max_seq_len = self.FLAGS.max_seq_len
 
+        self.type_lst, \
         self.type_lst_embedding, \
         self.time_lst, \
         self.time_lst_embedding, \
+        self.sahp_time_lst_embedding, \
         self.target_type_embedding, \
         self.target_type,\
         self.target_time, \
@@ -139,8 +141,8 @@ class NHP(NHP_model):
             self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
                                                                  num_units=self.num_units,
                                                                  type_num=self.type_num)
-            self.predict_type_prob = tf.matmul(self.predict_type_prob, self.embedding.type_emb_lookup_table[:-3, :],
-                                               transpose_b=True)
+            # self.predict_type_prob = tf.matmul(self.predict_type_prob, self.embedding.type_emb_lookup_table[:-3, :],
+            #                                    transpose_b=True)
         self.output()
 
 

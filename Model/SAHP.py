@@ -6,7 +6,7 @@
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
-from Model.Modules.intensity_calculation import sahp_intensity_calculation
+from Model.Modules.intensity_calculation import sahp_intensity_calculation,thp_intensity_calculation
 from Model.base_model import base_model
 from Model.Modules.transformer_encoder import transformer_encoder
 from Model.Modules.net_utils import gather_indexes, layer_norm
@@ -31,9 +31,11 @@ class SAHP_model(base_model):
         self.sims_len = self.FLAGS.sims_len
         self.max_seq_len = self.FLAGS.max_seq_len
 
+        self.type_lst, \
         self.type_lst_embedding, \
         self.time_lst, \
         self.time_lst_embedding, \
+        self.sahp_time_lst_embedding, \
         self.target_type_embedding, \
         self.target_type,\
         self.target_time, \
@@ -122,7 +124,7 @@ class SAHP(SAHP_model):
 
         self.sahp_att_model = SahpSelfAttention()
 
-        h = self.get_emb(self.time_lst_embedding,self.type_lst_embedding) # TODO time_lst_embedidng 需要更改
+        h = self.get_emb(self.sahp_time_lst_embedding,self.type_lst_embedding) # TODO time_lst_embedidng 需要更改
 
         M = self.FLAGS.THP_M
         dtype = h.dtype
@@ -131,10 +133,13 @@ class SAHP(SAHP_model):
             W_mu = tf.get_variable('W_mu',shape = (M,1),dtype = dtype)
             W_eta = tf.get_variable('W_eta',shape=(M,1), dtype=dtype)
             W_gamma = tf.get_variable('W_gamma', shape=(M,1), dtype=dtype)
+            b_mu = tf.get_variable('b_mu', shape=(1,), dtype=dtype)
+            b_eta = tf.get_variable('b_eta', shape=(1,), dtype=dtype)
+            b_gamma = tf.get_variable('b_gamma', shape=(1,), dtype=dtype)
 
-            mu = self.gelu(tf.matmul(h,W_mu)) # TODO 这个函数需要检查
-            eta = self.gelu(tf.matmul(h,W_eta))
-            gamma = tf.nn.softplus(tf.matmul(h,W_gamma))
+            mu = self.gelu(tf.matmul(h,W_mu) + b_mu) # TODO 这个函数需要检查
+            eta = self.gelu(tf.matmul(h,W_eta) + b_eta)
+            gamma = tf.nn.softplus(tf.matmul(h,W_gamma) + b_gamma)
 
 
         with tf.variable_scope('intensity_calculation', reuse=tf.AUTO_REUSE):
@@ -155,6 +160,8 @@ class SAHP(SAHP_model):
                                                                   last_time=last_time,
                                                                   sims_len=self.sims_len,
                                                                   type_num=self.type_num)
+
+
 
         with tf.variable_scope('predict_time_type',reuse=tf.AUTO_REUSE):
             time_predictor = thp_time_predictor()

@@ -28,9 +28,11 @@ class THP_model(base_model):
         self.sims_len = self.FLAGS.sims_len
         self.max_seq_len = self.FLAGS.max_seq_len
 
+        self.type_lst, \
         self.type_lst_embedding, \
         self.time_lst, \
         self.time_lst_embedding, \
+        self.sahp_time_lst_embedding, \
         self.target_type_embedding, \
         self.target_type,\
         self.target_time, \

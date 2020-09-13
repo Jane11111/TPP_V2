@@ -88,9 +88,11 @@ class SahpSelfAttention():
                 paddings = tf.ones_like(att) * (-2 ** 32 +1)
                 masked_att = tf.where(masks,att,paddings)
 
-                sum_masked_att = tf.reduce_sum(masked_att, axis = 1, keep_dims=True) # batch_size, L, 1
-                masked_att = masked_att/(sum_masked_att + 1e-9)
-
+                #
+                # masked_att = tf.exp(masked_att)
+                # sum_masked_att = tf.reduce_sum(masked_att, axis = 2, keep_dims=True) # batch_size, L, 1
+                # masked_att = masked_att/(sum_masked_att +1e-9)
+                masked_att = tf.nn.softmax(masked_att)
 
                 # Dropouts
                 masked_att = tf.layers.dropout(masked_att,rate = dropout_rate)

@@ -219,14 +219,14 @@ class sahp_intensity_calculation():
         self.gamma = gamma
 
 
-    def cal_intensity(self,time_interval,type):
+    def cal_intensity(self,mu,eta,gamma,time_interval,type):
         """
         :param time_interval: N,1
         :param type: int
         :return:
         """
         with tf.variable_scope('intensity_calculation'+'_'+str(type)):
-            raw_lambda = self.mu +(self.eta-self.mu) * tf.exp(-self.gamma * (time_interval))
+            raw_lambda = mu +(eta-mu) * tf.exp(-gamma * time_interval)
 
             lambda_val = tf.nn.softplus(raw_lambda) # batch_size, 1
         return lambda_val
@@ -247,7 +247,7 @@ class sahp_intensity_calculation():
         last_time = tf.reshape(last_time, shape = (-1,1))
         time_interval = target_time - last_time
         for type in range(type_num):
-            cur_intensity = self.cal_intensity(time_interval= time_interval,
+            cur_intensity = self.cal_intensity(mu = self.mu,eta=self.eta, gamma=self.gamma,time_interval= time_interval,
                                                type = type)
             lst.append(cur_intensity)
         target_intensity = tf.concat(lst, axis = 1) # batch_size, type_num
@@ -269,9 +269,13 @@ class sahp_intensity_calculation():
         last_time = tf.reshape(last_time, [-1,1]) # batch_size * sims_len , 1
         time_interval = sims_time - last_time # batch_size * sims_len , 1
 
+        mu = tf.reshape(tf.tile(self.mu,[1,sims_len]),[-1,1])
+        eta = tf.reshape(tf.tile(self.eta,[1,sims_len]),[-1,1])
+        gamma = tf.reshape(tf.tile(self.gamma,[1,sims_len]),[-1,1])
+
         lst = []
         for type in range(type_num):
-            cur_intensity = self.cal_intensity(time_interval=time_interval,
+            cur_intensity = self.cal_intensity(mu=mu,eta=eta,gamma=gamma,time_interval=time_interval,
                                                type = type) # batch_size * sims_len , 1
             lst.append(cur_intensity)
         sims_intensity = tf.concat(lst, axis = 1) # batch_size * sims_len, type_num
@@ -389,3 +393,96 @@ class rmtpp_density_calculation():
         f_val = self.cal_density(hidden_emb=hidden_emb,time_interval=interval)
 
         return f_val
+
+
+
+class hp_intensity_calculation():
+
+    def __init__(self):
+        pass
+
+    def cal_intensity(self,timenow_lst,type_lst,type_num,type_id,seq_len,max_seq_len):
+        """
+
+        :param timenow_lst: N, max_seq_len
+        :param type_lst: N, max_seq_len
+        :param type_num:  int 事件类型总数
+        :param type_id: 当前事件id
+        :param seq_len: N,
+        :param max_seq_len: int
+        :return:
+        """
+        dtype = timenow_lst.dtype
+
+        with tf.variable_scope('single_type_intensity_calculation'):
+            mu = tf.get_variable('mu',shape = (type_num, ),dtype=dtype)
+            alpha = tf.get_variable('alpha', shape=(type_num,type_num),dtype=dtype)
+            delta = tf.get_variable('delta', shape = (type_num,type_num), dtype=dtype)
+
+        row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
+        col_idx = tf.ones_like(row_idx) * type_id
+        idx = tf.concat([row_idx, col_idx], axis=1)
+        # TODO 如何限制为正
+        cur_mu = tf.nn.relu(mu[type_id])
+        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
+        cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(delta,idx), shape=(-1,max_seq_len)))
+
+        term2 =   cur_alpha * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
+
+        masks = tf.sequence_mask(seq_len-1,maxlen=max_seq_len)# N, max_seq_len
+        term2 = term2 * tf.to_float(masks)
+        term2 = tf.reduce_sum(term2, axis=1, keep_dims=True)
+
+        lambda_val = cur_mu + term2
+
+        return lambda_val # batch_size, 1
+
+
+
+    def cal_target_intensity(self,timenow_lst, type_lst,type_num,seq_len, max_seq_len):
+        """
+
+        :param timenow_lst: batch_size, max_seq_len
+        :param type_lst:  batch_size, max_seq_len
+        :param type_num: int
+        :param seq_len: batch_size,
+        :param max_seq_len: int
+        :return:
+        """
+        lst = []
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(timenow_lst=timenow_lst,type_lst=type_lst,
+                                               type_num=type_num, type_id = type,
+                                               seq_len=seq_len, max_seq_len=max_seq_len)
+            lst.append(cur_intensity)
+        target_intensity = tf.concat(lst, axis = 1) # batch_size, type_num
+        return target_intensity
+
+
+    def cal_sims_intensity(self,sims_timenow_lst,type_lst,type_num,seq_len,max_seq_len,sims_len):
+        """
+
+        :param sims_timenow_lst: batch_size, sims_len, max_seq_len
+        :param type_lst: batch_size, max_seq_len
+        :param type_num: int
+        :param seq_len: batch_size,
+        :param max_seq_len: int
+        :param sims_len: int
+        :return:
+        """
+        sims_timenow_lst = tf.split(sims_timenow_lst, num_or_size_splits=sims_len, axis=1)
+        lst = []
+        for sims_timenow in sims_timenow_lst:
+            sims_timenow = tf.reshape(sims_timenow,shape=(-1,max_seq_len))
+            sub_lst = []
+            for type in range(type_num):
+                cur_intensity = self.cal_intensity(timenow_lst=sims_timenow,type_lst=type_lst,
+                                                   type_num=type_num, type_id = type,
+                                                   seq_len = seq_len, max_seq_len = max_seq_len) # batch_size ,1
+                sub_lst.append(cur_intensity)
+            sub_intensity = tf.concat(sub_lst,axis=1) # batch_size, type_num
+            lst.append(sub_intensity)
+        sims_intensity = tf.concat(lst, axis=1) # batch_size, type_num*sims_len
+        sims_intensity = tf.reshape(sims_intensity,shape=(-1,sims_len,type_num))
+
+        return sims_intensity # bath_size, sims_len, type_num
