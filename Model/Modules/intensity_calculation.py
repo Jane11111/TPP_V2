@@ -398,12 +398,17 @@ class rmtpp_density_calculation():
 
 class hp_intensity_calculation():
 
-    def __init__(self):
-        pass
+    def __init__(self,type_num,dtype):
+        with tf.variable_scope('single_type_intensity_calculation'):
+            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
+            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
+            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
+
+    def get_parameter(self):
+        return self.mu,self.alpha, self.delta
 
     def cal_intensity(self,timenow_lst,type_lst,type_num,type_id,seq_len,max_seq_len):
         """
-
         :param timenow_lst: N, max_seq_len
         :param type_lst: N, max_seq_len
         :param type_num:  int 事件类型总数
@@ -412,20 +417,14 @@ class hp_intensity_calculation():
         :param max_seq_len: int
         :return:
         """
-        dtype = timenow_lst.dtype
-
-        with tf.variable_scope('single_type_intensity_calculation'):
-            mu = tf.get_variable('mu',shape = (type_num, ),dtype=dtype)
-            alpha = tf.get_variable('alpha', shape=(type_num,type_num),dtype=dtype)
-            delta = tf.get_variable('delta', shape = (type_num,type_num), dtype=dtype)
 
         row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
         col_idx = tf.ones_like(row_idx) * type_id
         idx = tf.concat([row_idx, col_idx], axis=1)
         # TODO 如何限制为正
-        cur_mu = tf.nn.relu(mu[type_id])
-        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
-        cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(delta,idx), shape=(-1,max_seq_len)))
+        cur_mu = tf.nn.relu(self.mu[type_id])
+        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
+        cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(self.delta,idx), shape=(-1,max_seq_len)))
 
         term2 =   cur_alpha * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
 
@@ -437,6 +436,134 @@ class hp_intensity_calculation():
 
         return lambda_val # batch_size, 1
 
+    def cal_origin_intensity(self,timenow_lst,t_target,type_lst,type_id,seq_len,max_seq_len):
+        """
+        强度函数的原函数在t=t_target时的值
+        :param timenow_lst: N, max_seq_len
+        :param t_target: N,
+        :param type_lst: N, max_seq_len
+        :param type_num:  int 事件类型总数
+        :param type_id: 当前事件id
+        :param seq_len: N,
+        :param max_seq_len: int
+        :return:
+        """
+
+        row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
+        col_idx = tf.ones_like(row_idx) * type_id
+        idx = tf.concat([row_idx, col_idx], axis=1)
+        # TODO 如何限制为正
+        cur_mu = tf.nn.relu(self.mu[type_id])
+        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
+        cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(self.delta,idx), shape=(-1,max_seq_len)))
+
+        term2 = (cur_alpha/(-cur_delta -0.00001)) * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
+
+        masks = tf.sequence_mask(seq_len-1,maxlen=max_seq_len)# N, max_seq_len
+        term2 = term2 * tf.to_float(masks)
+        term2 = tf.reduce_sum(term2, axis=1, keep_dims=True)
+
+        t_target = tf.reshape(t_target, [-1,1])
+        lambda_val = cur_mu * t_target + term2
+
+        return lambda_val # batch_size, 1
+
+
+    def cal_target_intensity(self,timenow_lst, type_lst,type_num,seq_len, max_seq_len):
+        """
+
+        :param timenow_lst: batch_size, max_seq_len
+        :param type_lst:  batch_size, max_seq_len
+        :param type_num: int
+        :param seq_len: batch_size,
+        :param max_seq_len: int
+        :return:
+        """
+        lst = []
+        for type in range(type_num):
+            cur_intensity = self.cal_intensity(timenow_lst=timenow_lst,type_lst=type_lst,
+                                               type_num=type_num, type_id = type,
+                                               seq_len=seq_len, max_seq_len=max_seq_len)
+            lst.append(cur_intensity)
+        target_intensity = tf.concat(lst, axis = 1) # batch_size, type_num
+        return target_intensity
+
+
+    def cal_sims_intensity(self,sims_timenow_lst,type_lst,type_num,seq_len,max_seq_len,sims_len):
+        """
+
+        :param sims_timenow_lst: batch_size, sims_len, max_seq_len
+        :param type_lst: batch_size, max_seq_len
+        :param type_num: int
+        :param seq_len: batch_size,
+        :param max_seq_len: int
+        :param sims_len: int
+        :return:
+        """
+        sims_timenow_lst = tf.split(sims_timenow_lst, num_or_size_splits=sims_len, axis=1)
+        lst = []
+        for sims_timenow in sims_timenow_lst:
+            sims_timenow = tf.reshape(sims_timenow,shape=(-1,max_seq_len))
+            sub_lst = []
+            for type in range(type_num):
+                cur_intensity = self.cal_intensity(timenow_lst=sims_timenow,type_lst=type_lst,
+                                                   type_num=type_num, type_id = type,
+                                                   seq_len = seq_len, max_seq_len = max_seq_len) # batch_size ,1
+                sub_lst.append(cur_intensity)
+            sub_intensity = tf.concat(sub_lst,axis=1) # batch_size, type_num
+            lst.append(sub_intensity)
+        sims_intensity = tf.concat(lst, axis=1) # batch_size, type_num*sims_len
+        sims_intensity = tf.reshape(sims_intensity,shape=(-1,sims_len,type_num))
+
+        return sims_intensity # bath_size, sims_len, type_num
+
+
+
+
+class ihp_intensity_calculation():
+
+    def __init__(self,type_num,dtype):
+        with tf.variable_scope('single_type_intensity_calculation'):
+            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
+            self.s = tf.get_variable('s', shape=(type_num+1,), dtype=dtype)
+            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
+            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
+
+    def get_parameter(self):
+        return self.mu,self.alpha, self.delta
+
+    def cal_intensity(self,timenow_lst,type_lst,type_num,type_id,seq_len,max_seq_len):
+        """
+        :param timenow_lst: N, max_seq_len
+        :param type_lst: N, max_seq_len
+        :param type_num:  int 事件类型总数
+        :param type_id: 当前事件id
+        :param seq_len: N,
+        :param max_seq_len: int
+        :return:
+        """
+
+        row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
+        col_idx = tf.ones_like(row_idx) * type_id
+        idx = tf.concat([row_idx, col_idx], axis=1)
+
+        cur_mu = self.mu[type_id]
+        cur_s = tf.nn.relu(self.s[type_id])+1e-9 # the intensity must be positive
+        cur_alpha = tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len)) # N, max_seq_len
+        cur_delta = tf.reshape(tf.gather_nd(self.delta,idx), shape=(-1,max_seq_len))
+
+        term2 =   cur_alpha * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
+
+        masks = tf.sequence_mask(seq_len-1,maxlen=max_seq_len)# N, max_seq_len
+        term2 = term2 * tf.to_float(masks)
+        term2 = tf.reduce_sum(term2, axis=1, keep_dims=True)
+
+        lambda_bar = cur_mu + term2
+
+        # TODO scaled softplus
+        lambda_val = cur_s*tf.nn.softplus(lambda_bar/cur_s)
+
+        return lambda_val # batch_size, 1
 
 
     def cal_target_intensity(self,timenow_lst, type_lst,type_num,seq_len, max_seq_len):

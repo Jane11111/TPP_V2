@@ -20,6 +20,8 @@ from Model.AttentionTPP import MTAM_TPP_wendy_time
 from Model.THP import THP
 from Model.NHP import NHP
 from Model.RMTPP import RMTPP
+from Model.SAHP import SAHP
+from Model.HP import HP,IHP
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score, accuracy_score
 
 random.seed(1234)
@@ -87,7 +89,7 @@ class Train_main_process:
 
         global_step_lr = tf.Variable(0, trainable=False)
         decay_rate = tf.train.exponential_decay(
-            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=self.FLAGS.llh_decay_rate,
+            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=1,
             staircase=True)
 
         with self.sess.as_default():
@@ -100,7 +102,12 @@ class Train_main_process:
                 self.model = NHP(self.FLAGS,self.emb,self.sess)
             elif self.FLAGS.model_name == 'RMTPP':
                 self.model = RMTPP(self.FLAGS,self.emb,self.sess)
-
+            elif self.FLAGS.model_name == 'SAHP':
+                self.model = SAHP(self.FLAGS,self.emb,self.sess)
+            elif self.FLAGS.model_name == 'HP':
+                self.model = HP(self.FLAGS,self.emb,self.sess)
+            elif self.FLAGS.model_name == 'IHP':
+                self.model = IHP(self.FLAGS,self.emb,self.sess)
             self.logger.info('Init finish. cost time: %.2fs' %(time.time() - start_time))
 
 

@@ -120,12 +120,7 @@ class DataLoader():
             target_time = complete_time_lst[i]
 
             not_first = 1.
-            # if i == 0:
-            #     type_lst = [0]
-            #     time_lst = [0]
-            #     not_first = 0.
-            #
-            # else:
+
             history_len = min(i,self.FLAGS.max_seq_len-1)
             start_idx = max(0, i-history_len)
             end_idx = i
@@ -138,8 +133,16 @@ class DataLoader():
                 sims_time_lst = list(np.random.uniform(time_lst[-2],target_time, sims_len))
             else:
                 sims_time_lst = [complete_time_lst[i-1],target_time]
+
+            target_now_last_lst = self.pro_time_method(time_lst, target_time)
+            sim_now_last_lst = []
+            for t in sims_time_lst:  # sims_time_lst
+                sim_now_last_lst.append(self.pro_time_method(time_lst, t))
+
+
             res.append([type_lst, time_lst,
-                        target_type, target_time, len(time_lst),target_time-time_lst[-2], not_first,sims_time_lst,])
+                        target_type, target_time, len(time_lst),target_time-time_lst[-2],
+                        not_first,sims_time_lst,target_now_last_lst,sim_now_last_lst])
 
         return res
 

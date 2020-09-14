@@ -56,6 +56,45 @@ class history_embedding(Base_embedding):
         return type_embedding
 
 
+    def get_thp_time_embedding(self,M,time_lst):
+        single_odd_mask = np.zeros(shape=(M,))
+        single_odd_mask[::2] = 1
+        single_odd_mask = tf.convert_to_tensor(single_odd_mask, dtype=tf.float32)  # M,
+        single_even_mask = np.zeros(shape=(M,))
+        single_even_mask[1::2] = 1
+        single_even_mask = tf.convert_to_tensor(single_even_mask, dtype=tf.float32)
+
+        emb_time_lst = tf.tile(tf.expand_dims(time_lst, axis=2), [1, 1, M])  # batch_size, seq_len, M
+
+        single_odd_deno = tf.to_float(10000 ** (tf.range(start=0, limit=M, delta=1) / M))  # M,
+        single_even_deno = tf.to_float(10000 ** (tf.range(start=1, limit=M + 1, delta=1) / M))
+
+        odd_emb = tf.cos(emb_time_lst / single_odd_deno)
+        even_emb = tf.sin(emb_time_lst / single_even_deno)
+        time_lst_emb = odd_emb * single_odd_mask + even_emb * single_even_mask
+        return time_lst_emb
+
+    def get_sahp_time_embedding(self,M,time_lst):
+        dtype = time_lst.dtype
+        single_odd_mask = np.zeros(shape=(M,))
+        single_odd_mask[::2] = 1
+        single_odd_mask = tf.convert_to_tensor(single_odd_mask, dtype=dtype)  # M,
+        single_even_mask = np.zeros(shape=(M,))
+        single_even_mask[1::2] = 1
+        single_even_mask = tf.convert_to_tensor(single_even_mask, dtype=dtype)
+
+        emb_time_lst = tf.tile(tf.expand_dims(time_lst, axis=2), [1, 1, M])  # batch_size, seq_len, M
+
+        pos_lst = tf.zeros_like(time_lst) + tf.to_float(tf.range(0, self.max_seq_len, 1))
+        emb_pos_lst = tf.tile(tf.expand_dims(pos_lst, axis=2), [1, 1, M])
+
+        single_odd_deno = tf.to_float(10000 ** (tf.range(start=0, limit=M, delta=1) / M))  # M,
+        single_even_deno = tf.to_float(10000 ** (tf.range(start=1, limit=M + 1, delta=1) / M))
+
+        odd_emb = tf.cos((emb_time_lst + emb_pos_lst)/single_odd_deno)  # TODO wk那些系数应该怎么乘
+        even_emb = tf.sin((emb_time_lst + emb_time_lst)/single_even_deno)
+        time_lst_emb = odd_emb * single_odd_mask + even_emb * single_even_mask
+        return time_lst_emb
     def get_embedding(self, num_units):
 
         self.type_emb_lookup_table = self.init_embedding_lookup_table(name = 'type',
@@ -70,25 +109,18 @@ class history_embedding(Base_embedding):
 
         # time embedding for THP
         M = num_units
-        single_odd_mask = np.zeros(shape=(M,))
-        single_odd_mask[::2] = 1
-        single_odd_mask = tf.convert_to_tensor(single_odd_mask, dtype=tf.float32)  # M,
-        single_even_mask = np.zeros(shape=(M,))
-        single_even_mask[1::2] = 1
-        single_even_mask = tf.convert_to_tensor(single_even_mask, dtype=tf.float32)
+        self.time_lst_emb = self.get_thp_time_embedding(M,self.time_lst)
 
-        emb_time_lst = tf.tile(tf.expand_dims(self.time_lst, axis=2), [1, 1, M])  # batch_size, seq_len, M
+        # time embedding for SAHP
+        self.sahp_time_lst_emb = self.get_sahp_time_embedding(M,self.time_lst)
 
-        single_odd_deno = tf.to_float(10000 ** (tf.range(start=0, limit=M, delta=1) / M))  # M,
-        single_even_deno = tf.to_float(10000 ** (tf.range(start=1, limit=M + 1, delta=1) / M))
 
-        odd_emb = tf.cos(emb_time_lst / single_odd_deno)
-        even_emb = tf.sin(emb_time_lst / single_even_deno)
-        self.time_lst_emb = odd_emb * single_odd_mask + even_emb * single_even_mask
 
-        return type_lst_embedding,\
+        return self.type_lst,\
+               type_lst_embedding,\
                self.time_lst,\
                self.time_lst_emb,\
+               self.sahp_time_lst_emb,\
                target_type_embedding,\
                self.target_type,\
                self.target_time,\
@@ -119,6 +151,7 @@ class history_embedding(Base_embedding):
 
         for example in batch_data:
             padding_size = [0,self.max_seq_len - example[4]]
+            # print(example[0])
 
             type_lst.append(np.pad(example[0], padding_size, 'constant'))
             time_lst.append(np.pad(example[1], padding_size, 'constant'))
@@ -152,6 +185,8 @@ class history_embedding(Base_embedding):
         feed_dic[self.target_time_now_lst]=np.array(target_time_now_lst)
         feed_dic[self.sim_time_last_lst]=np.array(sim_time_last_lst) # batch_size, sim_len, num_units
         feed_dic[self.sim_time_now_lst] = np.array(sim_time_now_lst)
+
+
 
 
         return feed_dic

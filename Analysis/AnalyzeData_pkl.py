@@ -7,7 +7,7 @@ import pickle
 
 if __name__ == "__main__":
 
-    root = "D://Data/Hawkes/data_bookorder/fold1/"
+    root = "D://Data/Hawkes/data_retweet/"
     sample_count = 0
     train_test_count = [0,0,0]
     train_test_seq_len = [0,0,0]

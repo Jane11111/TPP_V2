@@ -11,15 +11,15 @@ class model_parameter:
         self.flags.DEFINE_integer('hidden_units', 8, 'Number of hidden units in each layer')
         self.flags.DEFINE_integer('num_blocks', 3, 'Number of blocks in each attention')
         self.flags.DEFINE_integer('num_heads', 1, 'Number of heads in each attention')
-        self.flags.DEFINE_integer('num_units', 32, 'Number of units in each attention')
-        self.flags.DEFINE_integer('type_emb_size', 32, 'Number of units in each attention')
+        self.flags.DEFINE_integer('num_units', 64, 'Number of units in each attention')
+        self.flags.DEFINE_integer('type_emb_size', 64, 'Number of units in each attention')
         self.flags.DEFINE_list('layers',[],'layer units of intensity calculation network')
         self.flags.DEFINE_float('dropout', 0.1, 'Dropout probability(0.0: no dropout)')
         self.flags.DEFINE_float('regulation_rate', 0.00005, 'L2 regulation rate')
 
         # THP model parametre
-        self.flags.DEFINE_integer('THP_stack_num',3,'the number of multiple self-attention')
-        self.flags.DEFINE_integer('THP_head_num',3,'the head number of mltihead attention')
+        self.flags.DEFINE_integer('THP_stack_num',1,'the number of multiple self-attention')
+        self.flags.DEFINE_integer('THP_head_num',1,'the head number of mltihead attention')
         self.flags.DEFINE_integer('THP_Mk',16, 'Mk in THP')
         self.flags.DEFINE_integer('THP_Mv',16, 'Mv in THP')
         self.flags.DEFINE_integer('THP_M',64,'M in THP')
@@ -29,7 +29,7 @@ class model_parameter:
 
         # 随机梯度下降sgd
         self.flags.DEFINE_string('optimizer', 'adam', 'Optimizer for training: (adadelta, adam, rmsprop,sgd*)')
-        self.flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
+        self.flags.DEFINE_float('learning_rate', 0.0005, 'Learning rate')
         self.flags.DEFINE_float('decay_rate', 0.001, 'decay rate')
         self.flags.DEFINE_float('llh_decay_rate', 1, 'decay rate')
         # 最大梯度渐变到5
@@ -82,7 +82,10 @@ class model_parameter:
         # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_time", 'model name')
         # self.flags.DEFINE_string('model_name', "THP", 'model name')
         # self.flags.DEFINE_string('model_name', "NHP", 'model name')
-        self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
+        # self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
+        # self.flags.DEFINE_string('model_name', "SAHP", 'model name')
+        # self.flags.DEFINE_string('model_name', "HP", 'model name')
+        self.flags.DEFINE_string('model_name', "IHP", 'model name')
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
@@ -94,11 +97,13 @@ class model_parameter:
         # temporary point process
         self.flags.DEFINE_integer('type_num',5,"the number of event types")
         self.flags.DEFINE_integer('sims_len',10,'max number of samples')
+        self.flags.DEFINE_integer('inner_sims_len',2,'samples of the inner part for calculating time')
+        self.flags.DEFINE_integer('outer_sims_len',2,'samples of the outer part for calculating the time')
         self.flags.DEFINE_string('integral_cal','MC','the method to calculate integral')
 
 
         #prepare data
-        self.flags.DEFINE_boolean('split_data',True, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data',False, "if data is needed to be splitted")
         self.flags.DEFINE_string('data_name','mimic_fold3','the type of the dataset')
 
         self.flags.DEFINE_string('in_data_root_path','D://Project/TPP_V2/data/origin_data/data_event/','the root path of the dataset')

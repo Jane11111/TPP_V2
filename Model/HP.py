@@ -12,11 +12,11 @@ import tensorflow as tf
 from Model.base_model import base_model
 from Model.Modules.transformer_encoder import transformer_encoder
 from Model.Modules.net_utils import gather_indexes, layer_norm
-from Model.Modules.time_prediction import thp_time_predictor
+from Model.Modules.time_prediction import hp_time_predictor,ihp_time_predictor
 from Model.Modules.type_prediction import thp_type_predictor
 from Model.Modules.continuous_time_rnn import ContinuousLSTM
 from tensorflow.python.ops import array_ops
-from Model.Modules.intensity_calculation import hp_intensity_calculation
+from Model.Modules.intensity_calculation import hp_intensity_calculation,ihp_intensity_calculation
 
 class HP_model(base_model):
     def __init__(self, FLAGS, Embedding, sess):
@@ -64,7 +64,7 @@ class HP(HP_model):
 
 
         with tf.variable_scope('intensity_calculation', reuse=tf.AUTO_REUSE):
-            intensity_model = hp_intensity_calculation()
+            intensity_model = hp_intensity_calculation(type_num=self.type_num,dtype=self.time_lst.dtype)
 
             self.target_lambda = intensity_model.cal_target_intensity(timenow_lst=self.target_time_now_lst,
                                                                       type_lst=self.type_lst,
@@ -80,9 +80,17 @@ class HP(HP_model):
                                                                   sims_len=self.sims_len)
 
         with tf.variable_scope('type_time_calculation', reuse=tf.AUTO_REUSE):
-            time_predictor = thp_time_predictor()
-            self.predict_time = time_predictor.predict_time(emb=emb_for_time,
-                                                            num_units=self.num_units, )
+
+            last_time = tf.squeeze(gather_indexes(batch_size=self.now_batch_size,
+                                                  seq_length=self.max_seq_len,
+                                                  width=1,
+                                                  sequence_tensor=tf.expand_dims(self.time_lst, axis=-1),
+                                                  positions=self.mask_index - 1))  # target_time 上个时刻
+            time_predictor = hp_time_predictor(f = intensity_model,
+                                               type_num = self.type_num, max_seq_len = self.max_seq_len,
+                                               type_lst = self.type_lst, last_time = last_time,time_lst=self.time_lst,
+                                               seq_len = self.seq_len)
+            self.predict_time = time_predictor.predict_time(outer_sims_len=self.FLAGS.outer_sims_len)
 
 
             self.predict_type_prob = self.target_lambda# batch_size, type_num
@@ -91,6 +99,47 @@ class HP(HP_model):
         self.output()
 
 
+class IHP(HP_model):
 
+
+    def build_model(self):
+
+
+
+        with tf.variable_scope('intensity_calculation', reuse=tf.AUTO_REUSE):
+            intensity_model = ihp_intensity_calculation(type_num=self.type_num,dtype=self.time_lst.dtype)
+
+            self.target_lambda = intensity_model.cal_target_intensity(timenow_lst=self.target_time_now_lst,
+                                                                      type_lst=self.type_lst,
+                                                                      type_num = self.type_num,
+                                                                      seq_len = self.seq_len,
+                                                                      max_seq_len = self.max_seq_len
+                                                                      )
+            self.sims_lambda = intensity_model.cal_sims_intensity(sims_timenow_lst = self.sim_time_now_lst,
+                                                                  type_lst=self.type_lst,
+                                                                  type_num=self.type_num,
+                                                                  seq_len=self.seq_len,
+                                                                  max_seq_len=self.max_seq_len,
+                                                                  sims_len=self.sims_len)
+
+        with tf.variable_scope('type_time_calculation', reuse=tf.AUTO_REUSE):
+
+            last_time = tf.squeeze(gather_indexes(batch_size=self.now_batch_size,
+                                                  seq_length=self.max_seq_len,
+                                                  width=1,
+                                                  sequence_tensor=tf.expand_dims(self.time_lst, axis=-1),
+                                                  positions=self.mask_index - 1))  # target_time 上个时刻
+            time_predictor = ihp_time_predictor(f = intensity_model,type_num = self.type_num,
+                                                max_seq_len = self.max_seq_len,
+                                                type_lst = self.type_lst, last_time = last_time,
+                                                time_lst=self.time_lst,seq_len = self.seq_len)
+            self.predict_time = time_predictor.predict_time(inner_sims_len=self.FLAGS.inner_sims_len,
+                                                            outer_sims_len=self.FLAGS.outer_sims_len)
+
+
+            self.predict_type_prob = self.target_lambda# batch_size, type_num
+
+
+        self.output()
 
 
