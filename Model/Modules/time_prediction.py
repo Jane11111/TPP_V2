@@ -208,13 +208,12 @@ class ihp_time_predictor():
         step1: 在t_last - inf上采样N 个样本（记做t_target）
         """
         t_last=tf.reshape(self.last_time,[-1,1])
-        avg_inter_len = (t_last-0.)/(tf.to_float(self.seq_len)-1)
-        if avg_inter_len ==0:
-            avg_inter_len  = 1
+        avg_inter_len = (t_last-0.)/(tf.to_float(tf.reshape(self.seq_len,[-1,1]))-1)
+
         sims_lst = []
         for i in range(outer_sims_len):
             sims_lst.append(t_last+avg_inter_len*(2**i))
-
+            # sims_lst.append(t_last + 0.)
         max_sims_lst = sims_lst[-1] # batch_size, 1
         """
         step2: 计算f(t) = lambda(t) * exp(-integral))
