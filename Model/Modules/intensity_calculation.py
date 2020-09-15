@@ -398,14 +398,8 @@ class rmtpp_density_calculation():
 
 class hp_intensity_calculation():
 
-    def __init__(self,type_num,dtype):
-        with tf.variable_scope('single_type_intensity_calculation'):
-            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
-            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
-            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
-
-    def get_parameter(self):
-        return self.mu,self.alpha, self.delta
+    def __init__(self):
+        pass
 
     def cal_intensity(self,timenow_lst,type_lst,type_num,type_id,seq_len,max_seq_len):
         """
@@ -418,6 +412,14 @@ class hp_intensity_calculation():
         :return:
         """
 
+        dtype=timenow_lst.dtype
+
+        with tf.variable_scope('single_type_intensity_calculation'):
+            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
+            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
+            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
+
+
         row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
         col_idx = tf.ones_like(row_idx) * type_id
         idx = tf.concat([row_idx, col_idx], axis=1)
@@ -426,7 +428,7 @@ class hp_intensity_calculation():
         cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
         cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(self.delta,idx), shape=(-1,max_seq_len)))
 
-        term2 =   cur_alpha * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
+        term2 =   cur_alpha * tf.exp(-(cur_delta) * timenow_lst) # N, max_seq_len
 
         masks = tf.sequence_mask(seq_len-1,maxlen=max_seq_len)# N, max_seq_len
         term2 = term2 * tf.to_float(masks)
@@ -454,10 +456,10 @@ class hp_intensity_calculation():
         idx = tf.concat([row_idx, col_idx], axis=1)
         # TODO 如何限制为正
         cur_mu = tf.nn.relu(self.mu[type_id])
-        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len))) # N, max_seq_len
+        cur_alpha = tf.nn.relu(tf.reshape(tf.gather_nd(self.alpha, idx), shape=(-1, max_seq_len)))  # N, max_seq_len
         cur_delta = tf.nn.relu(tf.reshape(tf.gather_nd(self.delta,idx), shape=(-1,max_seq_len)))
 
-        term2 = (cur_alpha/(-cur_delta -0.00001)) * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
+        term2 = (cur_alpha/(-(cur_delta+0.001))) * tf.exp(-cur_delta * timenow_lst) # N, max_seq_len
 
         masks = tf.sequence_mask(seq_len-1,maxlen=max_seq_len)# N, max_seq_len
         term2 = term2 * tf.to_float(masks)
@@ -522,15 +524,9 @@ class hp_intensity_calculation():
 
 class ihp_intensity_calculation():
 
-    def __init__(self,type_num,dtype):
-        with tf.variable_scope('single_type_intensity_calculation'):
-            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
-            self.s = tf.get_variable('s', shape=(type_num+1,), dtype=dtype)
-            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
-            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
+    def __init__(self):
+        pass
 
-    def get_parameter(self):
-        return self.mu,self.alpha, self.delta
 
     def cal_intensity(self,timenow_lst,type_lst,type_num,type_id,seq_len,max_seq_len):
         """
@@ -542,6 +538,12 @@ class ihp_intensity_calculation():
         :param max_seq_len: int
         :return:
         """
+        dtype=timenow_lst.dtype
+        with tf.variable_scope('single_type_intensity_calculation'):
+            self.mu = tf.get_variable('mu', shape=(type_num+1,), dtype=dtype)
+            self.s = tf.get_variable('s', shape=(type_num+1,), dtype=dtype)
+            self.alpha = tf.get_variable('alpha', shape=(type_num+1, type_num+1), dtype=dtype)
+            self.delta = tf.get_variable('delta', shape=(type_num+1, type_num+1), dtype=dtype)
 
         row_idx = tf.reshape(type_lst, [-1, 1]) # N*seq_len, 1
         col_idx = tf.ones_like(row_idx) * type_id

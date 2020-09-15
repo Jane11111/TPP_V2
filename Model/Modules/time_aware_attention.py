@@ -504,13 +504,71 @@ class Time_Aware_Attention():
                                       #scope="feed_forward", reuse=reuse)
 
 
-                    self.vanilla_attention_att_vec = att_vec
+                    self.vanilla_attention_att_vec = att_vec # N, 1, max_seq_len
+
 
 
         # 此处怀疑有错误，非常重要
         # dec = tf.reshape(dec, [-1, num_units])
         return dec
+    def vanilla_attention4time(self,enc,dec,num_units, num_heads, num_blocks, dropout_rate, is_training,
+                               reuse, key_length, query_length, timelast_lst,last_time,time_interval, t_keys,t_querys_length, t_keys_length):
 
+        # enc user_history
+        # dec category_embedding
+
+        t_querys = last_time+time_interval
+        timelast_lst = tf.reshape(timelast_lst, [-1,t_keys_length])
+
+        masks = tf.sequence_mask(key_length, maxlen=t_keys_length, dtype=enc.dtype)
+        timelast_lst = masks*timelast_lst # 把target time mask 掉
+
+        #dec = tf.expand_dims(dec, 1)#在1的位置上增加1维
+        with tf.variable_scope("decoder"):
+            for i in range(num_blocks):
+                with tf.variable_scope("num_blocks_{}".format(i)):
+                    ## Multihead Attention ( vanilla attention)
+                    dec, att_vec = self.time_aware_multihead_attention(queries=dec,
+                                                       keys=enc,
+                                                       num_units=num_units,
+                                                       num_heads=num_heads,
+                                                       dropout_rate=dropout_rate,
+                                                       is_training=is_training,
+                                                       scope="vanilla_attention",
+                                                       key_length = key_length,
+                                                       query_length = query_length,
+                                                       t_querys =t_querys,
+                                                       t_keys = t_keys,
+                                                       t_querys_length=t_querys_length,
+                                                       t_keys_length=t_keys_length
+                                                       )
+                    self.vanilla_attention_att_vec = att_vec # N, 1, max_seq_len
+
+                    # TODO 构建新的t_query last_time + (0.5 * weighted_delt_t + 0.5 * interval)
+
+                    att_vec = tf.squeeze(self.vanilla_attention_att_vec, axis=1)
+                    pred_emb = tf.squeeze(dec, axis=1) # batch_size, num_units
+
+                    # weighted_delt_t = timelast_lst * att_vec
+                    # weighted_delt_t = tf.reduce_sum(weighted_delt_t, axis=1, keep_dims=True) # N,1
+                    # new_time_interval = 0.5*(weighted_delt_t+time_interval) # TODO 权重如何设置
+
+                    with tf.variable_scope('cal_new_interval',reuse=tf.AUTO_REUSE):
+                        term1 = tf.layers.dense(inputs = att_vec,units = 1)
+                        term2 = tf.layers.dense(inputs = timelast_lst, units=1)
+
+                        inputs = tf.concat([term1,term2,time_interval],axis=1)
+                        new_time_interval=tf.layers.dense(inputs=inputs, units = 1, activation=tf.nn.relu)
+
+
+                    t_querys = last_time + new_time_interval
+                    # update the time_interval
+                    time_interval = new_time_interval
+
+
+        # 此处怀疑有错误，非常重要
+        # dec = tf.reshape(dec, [-1, num_units])
+        return time_interval
     # def vanilla_attention(self, queries,
     #                       keys,
     #                       keys_length):

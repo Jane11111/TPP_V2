@@ -62,7 +62,7 @@ class NHP(NHP_model):
 
             output = self.ctsm_model.ctsm_net(hidden_units=self.num_units,
                                            input_data = ctsm_input,
-                                           input_length=tf.add(self.seq_len,-1)) # TODO 为什么要减去1
+                                           input_length=tf.add(self.seq_len,-1))
             h_i_minus = gather_indexes(batch_size=self.now_batch_size,
                                    seq_length=self.max_seq_len,
                                    width=self.num_units ,

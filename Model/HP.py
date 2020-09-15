@@ -64,7 +64,7 @@ class HP(HP_model):
 
 
         with tf.variable_scope('intensity_calculation', reuse=tf.AUTO_REUSE):
-            intensity_model = hp_intensity_calculation(type_num=self.type_num,dtype=self.time_lst.dtype)
+            intensity_model = hp_intensity_calculation( )
 
             self.target_lambda = intensity_model.cal_target_intensity(timenow_lst=self.target_time_now_lst,
                                                                       type_lst=self.type_lst,
@@ -107,7 +107,7 @@ class IHP(HP_model):
 
 
         with tf.variable_scope('intensity_calculation', reuse=tf.AUTO_REUSE):
-            intensity_model = ihp_intensity_calculation(type_num=self.type_num,dtype=self.time_lst.dtype)
+            intensity_model = ihp_intensity_calculation( )
 
             self.target_lambda = intensity_model.cal_target_intensity(timenow_lst=self.target_time_now_lst,
                                                                       type_lst=self.type_lst,

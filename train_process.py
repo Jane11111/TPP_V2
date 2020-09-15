@@ -16,7 +16,7 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import MTAM_TPP_wendy_time
+from Model.AttentionTPP import MTAM_TPP_wendy_time,MTAM_TPP_wendy_att_time
 from Model.THP import THP
 from Model.NHP import NHP
 from Model.RMTPP import RMTPP
@@ -89,7 +89,7 @@ class Train_main_process:
 
         global_step_lr = tf.Variable(0, trainable=False)
         decay_rate = tf.train.exponential_decay(
-            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=1,
+            learning_rate=1., global_step=global_step_lr, decay_steps=100, decay_rate=0.99,
             staircase=True)
 
         with self.sess.as_default():
@@ -98,6 +98,8 @@ class Train_main_process:
                 self.model = THP(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy_time':
                 self.model = MTAM_TPP_wendy_time(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'MTAM_TPP_wendy_att_time':
+                self.model = MTAM_TPP_wendy_att_time(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'NHP':
                 self.model = NHP(self.FLAGS,self.emb,self.sess)
             elif self.FLAGS.model_name == 'RMTPP':
