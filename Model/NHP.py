@@ -82,7 +82,7 @@ class NHP(NHP_model):
         interval = tf.reshape(interval,[-1,1])
 
         c_t = c_i_bar + (c_i - c_i_bar) * tf.exp(-delta_i * (interval)) # batch_size, num_units
-        h_t = o_i * (2*tf.nn.sigmoid(2*c_t-1)) # batch_size, num_units
+        h_t = o_i * (2*tf.nn.sigmoid(2*c_t)-1) # batch_size, num_units
 
         return h_t
 
@@ -90,10 +90,11 @@ class NHP(NHP_model):
         self.ctsm_model = ContinuousLSTM()
         self.transformer_model = transformer_encoder()
 
-        col_idx = self.mask_index - 1
-        row_idx = tf.reshape(tf.range(start=0, limit=self.now_batch_size, delta=1), [-1, 1])
-        idx = tf.concat([row_idx, col_idx], axis=1)
-        last_time = tf.gather_nd(self.time_lst, idx) # target_time的上一个时间
+        last_time = tf.squeeze(gather_indexes(batch_size=self.now_batch_size,
+                                    seq_length=self.max_seq_len,
+                                    width=1,
+                                    sequence_tensor=self.time_lst,
+                                    positions=self.mask_index - 1),axis=1)
 
 
         o_i, c_i, c_i_bar, delta_i, h_i_minus = self.get_state(self.target_time_last_lst)
