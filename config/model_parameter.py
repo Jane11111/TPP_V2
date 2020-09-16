@@ -76,7 +76,7 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
         # model & prepare the dataset
-        self.flags.DEFINE_boolean('split_data', False, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data', True, "if data is needed to be splitted")
         self.flags.DEFINE_float('learning_rate', 0.0005, 'Learning rate')
         # self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
@@ -84,7 +84,7 @@ class model_parameter:
         #self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_att_time", 'model name')
         # self.flags.DEFINE_string('model_name', "THP", 'model name')
         # self.flags.DEFINE_string('model_name', "NHP", 'model name')
-        # self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
+        self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
         # self.flags.DEFINE_string('model_name', "SAHP", 'model name')
         # self.flags.DEFINE_string('model_name', "HP", 'model name')
         # self.flags.DEFINE_string('model_name', "HP", 'model name')

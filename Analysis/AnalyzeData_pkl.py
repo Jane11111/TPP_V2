@@ -7,7 +7,7 @@ import pickle
 
 if __name__ == "__main__":
 
-    root = "D://Data/Hawkes/data_retweet/"
+    root = "D://Data/Hawkes/data_meme/"
     sample_count = 0
     train_test_count = [0,0,0]
     train_test_seq_len = [0,0,0]
@@ -26,6 +26,9 @@ if __name__ == "__main__":
         seq_lst = json_obj[key]
 
         for seq in seq_lst:
+            # # TODO 删除小于2的序列
+            # if len(seq) <2:
+            #     continue
             sample_count += 1
             train_test_seq_len[idx]+=1
             train_test_count[idx]+= len(seq)

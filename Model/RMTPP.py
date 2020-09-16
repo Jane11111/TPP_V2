@@ -113,8 +113,6 @@ class RMTPP(RMTPP_model):
             )
             one_hot_type = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num ]) # batch_size, type_num
 
-
-
             """type"""
             self.predict_type_prob = tf.nn.softmax(self.predict_type_prob)
             log_probs = tf.log (self.predict_type_prob + 1e-9)
@@ -125,8 +123,7 @@ class RMTPP(RMTPP_model):
 
             """lambda"""
 
-
-            self.log_likelihood =  tf.squeeze(tf.log(self.f_t+1e-9)) # batch_size,
+            self.log_likelihood =  tf.squeeze(tf.log(self.f_t )) # batch_size,
 
 
             self.log_likelihood_loss = -self.log_likelihood
