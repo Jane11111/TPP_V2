@@ -7,7 +7,7 @@ import pickle
 
 if __name__ == "__main__":
 
-    root = "D://Data/Hawkes/data_meme/"
+    root = "D://Data/Hawkes/data_retweet/"
     sample_count = 0
     train_test_count = [0,0,0]
     train_test_seq_len = [0,0,0]
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     min_seq_len = 1000
     type_dic = {}
 
-    for idx, filename in enumerate(['train.pkl','dev.pkl','test.pkl']):
+    for idx, filename in enumerate(['train_small_time.pkl','dev.pkl','test.pkl']):
         file_path = root + filename
         key = filename[:-4]
 

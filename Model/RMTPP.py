@@ -132,10 +132,11 @@ class RMTPP(RMTPP_model):
             self.type_likelihood = tf.constant([0,0])
 
 
-            self.loss =  tf.reduce_mean(self.SE_loss) \
-                         + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
-                        + tf.reduce_mean(self.cross_entropy_loss) # - (logP(y|h) + logf(d|h))
-
+            # self.loss =  tf.reduce_mean(self.SE_loss) \
+            #              + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
+            #             + tf.reduce_mean(self.cross_entropy_loss) # - (logP(y|h) + logf(d|h))
+            self.loss = self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
+                        + tf.reduce_mean(self.cross_entropy_loss)  # - (logP(y|h) + logf(d|h))
             # for metrics
             self.labels = one_hot_type
             # self.target_lambda = target_lambda

@@ -19,10 +19,11 @@ class thp_time_predictor():
 
         with tf.variable_scope(scope,reuse=tf.AUTO_REUSE):
 
-            W_time = tf.get_variable('W_time',shape = (num_units,1))
-            b_time = tf.get_variable('b_time',shape = [1])
-
-            times = tf.matmul(emb,W_time) + b_time
+            # W_time = tf.get_variable('W_time',shape = (num_units,1))
+            # b_time = tf.get_variable('b_time',shape = [1])
+            #
+            # times = tf.matmul(emb,W_time) + b_time
+            times=tf.layers.dense(inputs=emb,units=1,activation=tf.nn.relu)
         return times
 
 class hp_time_predictor():
@@ -55,37 +56,37 @@ class hp_time_predictor():
         return lambda_t
 
 
-    def cal_total_origin_intensity(self,target_time):
-        """
-        原函数
-        :param target_time: batch_size,
-        :return: batch_size, 1   lambda(t)
-        """
-        target_time = tf.reshape(target_time, [-1, 1])
-        timenow_lst = target_time - self.time_lst
-        lst = []
-        for type in range(self.type_num):
-            cur_intensity = self.f.cal_origin_intensity(timenow_lst=timenow_lst, t_target=target_time,
-                                                        type_lst=self.type_lst,type_id=type,
-                                                        seq_len=self.seq_len, max_seq_len=self.max_seq_len)
-            lst.append(cur_intensity)
-        target_intensity = tf.concat(lst, axis=1)  # batch_size, type_num
-        lambda_t = tf.reduce_sum(target_intensity, axis= 1, keep_dims=True) # batch_size, 1
-        return lambda_t
-
-    def cal_inner_integral(self,t_last, t_target):
-        """
-        使用原函数计算内部积分值
-        :param t_last:  batch_size,
-        :param t_target:  batch_size,
-        :return:
-        """
-
-        term1 = self.cal_total_origin_intensity(t_target)
-        term2 = self.cal_total_origin_intensity(t_last)
-        integral_intensity = term1-term2
-
-        return integral_intensity # batch_size,1
+    # def cal_total_origin_intensity(self,target_time):
+    #     """
+    #     原函数
+    #     :param target_time: batch_size,
+    #     :return: batch_size, 1   lambda(t)
+    #     """
+    #     target_time = tf.reshape(target_time, [-1, 1])
+    #     timenow_lst = target_time - self.time_lst
+    #     lst = []
+    #     for type in range(self.type_num):
+    #         cur_intensity = self.f.cal_origin_intensity(timenow_lst=timenow_lst, t_target=target_time,
+    #                                                     type_lst=self.type_lst,type_id=type,
+    #                                                     seq_len=self.seq_len, max_seq_len=self.max_seq_len)
+    #         lst.append(cur_intensity)
+    #     target_intensity = tf.concat(lst, axis=1)  # batch_size, type_num
+    #     lambda_t = tf.reduce_sum(target_intensity, axis= 1, keep_dims=True) # batch_size, 1
+    #     return lambda_t
+    #
+    # def cal_inner_integral(self,t_last, t_target):
+    #     """
+    #     使用原函数计算内部积分值
+    #     :param t_last:  batch_size,
+    #     :param t_target:  batch_size,
+    #     :return:
+    #     """
+    #
+    #     term1 = self.cal_total_origin_intensity(t_target)
+    #     term2 = self.cal_total_origin_intensity(t_last)
+    #     integral_intensity = term1-term2
+    #
+    #     return integral_intensity # batch_size,1
 
 
     def predict_time(self,outer_sims_len):
@@ -103,19 +104,29 @@ class hp_time_predictor():
 
         sims_lst = []
         for i in range(outer_sims_len):
-            sims_lst.append(t_last+avg_inter_len*(2**i))
+            sims_lst.append(t_last+avg_inter_len*(i+1))
 
         max_sims_lst = sims_lst[-1] # batch_size, 1
         """
         step2: 计算f(t) = lambda(t) * exp(-integral))
         """
         f_t_lst = []
+        self.term2_lst= []
+        self.tmp1 = None
         for cur_sims_lst in sims_lst:
             cur_sims_lst = tf.reshape(cur_sims_lst,shape=[-1,])
             term1 = self.cal_total_intensity(target_time= cur_sims_lst )
-            term2 = self.cal_inner_integral(t_last = t_last, t_target= cur_sims_lst)
+            term2  = self.f.cal_integral_intensity(t_last = t_last, t_target= cur_sims_lst,
+                                                  time_lst = self.time_lst,
+                                                  type_lst=self.type_lst,
+                                                  type_num = self.type_num,
+                                                  seq_len=self.seq_len,
+                                                  max_seq_len=self.max_seq_len)
             term2 = tf.exp(-term2)
             f_t_lst.append(term1*term2)
+            self.term2_lst.append(term2)
+
+
 
 
         """
@@ -125,7 +136,7 @@ class hp_time_predictor():
         total_f_t_lst = tf.concat(f_t_lst, axis=1) # batch_size, outer_sims_len
 
         total_mul = total_sims_lst * total_f_t_lst # batch_size, outer_sims_len
-        expectations = tf.reduce_mean(total_mul, axis=1, keep_dims=True)*max_sims_lst
+        expectations = tf.reduce_mean(total_mul, axis=1, keep_dims=True)*(max_sims_lst-t_last)
 
         return expectations
 
@@ -234,7 +245,7 @@ class ihp_time_predictor():
         total_f_t_lst = tf.concat(f_t_lst, axis=1) # batch_size, outer_sims_len
 
         total_mul = total_sims_lst * total_f_t_lst # batch_size, outer_sims_len
-        expectations = tf.reduce_mean(total_mul, axis=1, keep_dims=True)*max_sims_lst
+        expectations = tf.reduce_mean(total_mul, axis=1, keep_dims=True)*(max_sims_lst-t_last)
 
         return expectations
 

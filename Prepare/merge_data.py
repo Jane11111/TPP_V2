@@ -8,13 +8,14 @@
 """
 
 import json
+import pickle
 
 if __name__ == "__main__":
 
-    root = "D://Project/TPP_V2/data/origin_data/data_mimic/"
+    root = "D://Data/Hawkes/data_mimic/"
     out_root = root + 'total/'
 
-    for filename in ['train.json', 'test.json']:
+    for filename in ['train.pkl', 'test.pkl','dev.pkl']:
         out_path = out_root+filename
         new_dic = {"dim_process": 75,
                    "train":[],
@@ -22,16 +23,14 @@ if __name__ == "__main__":
                    "test":[],
                    "args":None,
                    "devtest":[]}
-        key = filename[:-5]
+        key = filename[:-4]
         for dirname in ['fold1','fold2','fold3','fold4','fold5']:
             in_path = root + dirname +'/' + filename
-            with open(in_path,'r') as f:
-                json_obj = json.load(f)
+            with open(in_path,'rb') as f:
+                json_obj = pickle.load(f, encoding='latin-1')
             new_dic[key].extend(json_obj[key])
 
-        json_str = json.dumps(new_dic,indent=4)
-        with open(out_path,'w') as w:
-            w.write(json_str)
+        pickle.dump(new_dic, open(out_path, 'wb' ))
 
 
 

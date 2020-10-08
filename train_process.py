@@ -16,7 +16,7 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import MTAM_TPP_wendy_time,MTAM_TPP_wendy_att_time
+from Model.AttentionTPP import MTAM_TPP_wendy_att_time
 from Model.THP import THP
 from Model.NHP import NHP
 from Model.RMTPP import RMTPP
@@ -96,8 +96,6 @@ class Train_main_process:
 
             if self.FLAGS.model_name == 'THP':
                 self.model = THP(self.FLAGS, self.emb, self.sess)
-            elif self.FLAGS.model_name == 'MTAM_TPP_wendy_time':
-                self.model = MTAM_TPP_wendy_time(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy_att_time':
                 self.model = MTAM_TPP_wendy_att_time(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'NHP':
@@ -194,7 +192,6 @@ class Train_main_process:
                     l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate,llh_decay_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
 
-                    # print(test_output[0])
                     count += len(train_batch_data)
 
                     avg_loss += step_loss
@@ -203,25 +200,6 @@ class Train_main_process:
                     sum_type_llh += np.sum(type_llh)
                     sum_ce_loss+=np.sum(ce_loss)
                     sum_se_loss += np.sum(se_loss)
-                    #print("step_loss: %.5f, l2_norm: %.5f"%(step_loss,l2_norm))
-                    # print(target_lambda)
-
-                    # if self.global_step % self.FLAGS.display_freq == 0:
-                    #     self.logger.info("epoch: %d, train_loss :%.5f, seq llh :%.5f,"
-                    #                      "cross_entropy_loss: %.5f, rmse_loss: %.5f,"
-                    #                      "time_llh: %.5f, type_llh:%.5f, step: %d, global_step: %d"
-                    #                      %(epoch,avg_loss/ self.FLAGS.display_freq,
-                    #                        sum_seq_llh/count,
-                    #                        sum_ce_loss/count,np.sqrt(sum_se_loss/count),
-                    #                        sum_time_llh/count,sum_type_llh/count,
-                    #                        step_i, self.global_step))
-                    #     avg_loss = 0.0
-                    #     sum_seq_llh = 0.0
-                    #     sum_time_llh = 0.0
-                    #     sum_type_llh = 0.0
-                    #     sum_ce_loss = 0.0
-                    #     sum_se_loss = 0.0
-                    #     count = 0.0
 
                 self.logger.info("epoch : %d"%(epoch))
                 avg_llh, accuracy,rmse  = eval_model()
@@ -241,7 +219,7 @@ class Train_main_process:
                 rmse_lst.append(rmse)
                 self.logger.info("MAX log likelihood: %.5f, MAX accuracy: %.5f,MIN sqrt mean squared error: %.5f"
                                  % (np.max(llh_lst), np.max(acc_lst), np.min(rmse_lst)))
-                if early_stop >= 5: # 连续5轮都没有最好的结果好
+                if early_stop >= 5 or ( np.isnan(avg_llh)) or (np.isnan(accuracy)) or(np.isnan(rmse)): # 连续5轮都没有最好的结果好
                     break
 
                 # self.save_model()

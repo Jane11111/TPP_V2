@@ -334,7 +334,7 @@ class TimeGRUCell(GRUCell):
         time_last = inputs[:, -2]
         time_last_score = tf.expand_dims(inputs[:, -2], -1)
         inputs = inputs[:, :-2]
-        interval = state[:,-1]
+        interval = state[:,-1] # 预测的时间
         state = math_ops.matmul(state[:,:-1],self.output_w,transpose_b=True)
         input_size = inputs.get_shape().with_rank(2)[1]
         # decay gates

@@ -71,13 +71,27 @@ class HP(HP_model):
                                                                       type_num = self.type_num,
                                                                       seq_len = self.seq_len,
                                                                       max_seq_len = self.max_seq_len
-                                                                      )
-            self.sims_lambda = intensity_model.cal_sims_intensity(sims_timenow_lst = self.sim_time_now_lst,
-                                                                  type_lst=self.type_lst,
-                                                                  type_num=self.type_num,
-                                                                  seq_len=self.seq_len,
-                                                                  max_seq_len=self.max_seq_len,
-                                                                  sims_len=self.sims_len)
+                                                                      ) # batch_size, type_num
+            # self.sims_lambda = intensity_model.cal_sims_intensity(sims_timenow_lst = self.sim_time_now_lst,
+            #                                                       type_lst=self.type_lst,
+            #                                                       type_num=self.type_num,
+            #                                                       seq_len=self.seq_len,
+            #                                                       max_seq_len=self.max_seq_len,
+            #                                                       sims_len=self.sims_len)
+            last_time = tf.squeeze(gather_indexes(batch_size=self.now_batch_size,
+                                       seq_length=self.max_seq_len,
+                                       width=1,
+                                       sequence_tensor=self.time_lst,
+                                       positions=self.mask_index - 1) ) # 上一个时间
+            self.integral_lambda  = intensity_model.cal_integral_intensity(t_last = last_time,
+                                                                          t_target=self.target_time,
+                                                                          time_lst = self.time_lst,
+                                                                          type_lst = self.type_lst,
+                                                                          type_num=self.type_num,
+                                                                          seq_len=self.seq_len,
+                                                                          max_seq_len=self.max_seq_len)
+            # self.test = self.target_lambda
+            # self.f_t = self.target_lambda * tf.exp(-self.integral_lambda)
 
         with tf.variable_scope('type_time_calculation', reuse=tf.AUTO_REUSE):
 
@@ -92,11 +106,66 @@ class HP(HP_model):
                                                seq_len = self.seq_len)
             self.predict_time = time_predictor.predict_time(outer_sims_len=self.FLAGS.outer_sims_len)
 
-
             self.predict_type_prob = self.target_lambda# batch_size, type_num
 
 
         self.output()
+
+    def output(self):
+
+        with tf.name_scope('loss_function'):
+
+            self.l2_norm = tf.add_n([
+                tf.nn.l2_loss(self.type_lst_embedding)
+            ])
+            regulation_rate = self.FLAGS.regulation_rate
+            one_hot_type = tf.one_hot(
+                self.target_type, depth = self.FLAGS.type_num, dtype = tf.float32
+            )
+            one_hot_type = tf.reshape(one_hot_type,[-1,self.FLAGS.type_num ]) # batch_size, type_num
+
+            """type"""
+            self.predict_type_prob = tf.nn.softmax(self.predict_type_prob)
+            log_probs = tf.log (self.predict_type_prob + 0.1)
+            self.cross_entropy_loss = -tf.reduce_sum(log_probs * one_hot_type, axis=[-1])  # batch_size,
+
+            """time"""
+            self.SE_loss  = (self.target_time-tf.squeeze(self.predict_time)) ** 2  # batch_size,
+
+            """lambda"""
+            lambda_k_t= self.target_lambda * one_hot_type
+            self.lambda_k_t= tf.reduce_sum(lambda_k_t,axis=1,keep_dims=True) # batch_size, 1
+
+            self.test = [self.lambda_k_t, self.integral_lambda]
+
+            self.log_likelihood = tf.log(self.lambda_k_t+1e-9)-self.integral_lambda
+
+            self.log_likelihood =  tf.squeeze(self.log_likelihood) # batch_size,
+
+
+            self.log_likelihood_loss = -self.log_likelihood
+
+            self.time_likelohood = tf.constant([0,0])
+            self.type_likelihood = tf.constant([0,0])
+
+
+            self.loss =  tf.reduce_mean(self.SE_loss) \
+                         + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
+                        + tf.reduce_mean(self.cross_entropy_loss) # - (logP(y|h) + logf(d|h))
+
+            # for metrics
+            self.labels = one_hot_type
+            # self.target_lambda = target_lambda
+
+            tf.summary.scalar('l2_norm', self.l2_norm)
+            tf.summary.scalar('learning_rate', self.learning_rate)
+            tf.summary.scalar('llh_decay_rate', self.llh_decay_rate)
+            tf.summary.scalar('loss', self.loss)
+            tf.summary.scalar('seq_log_likelihood', tf.reduce_mean(self.log_likelihood) )
+            tf.summary.scalar('cross_entropy_loss', tf.reduce_mean(self.cross_entropy_loss) )
+            tf.summary.scalar('sqrt_mean_square_error_loss', tf.sqrt(tf.reduce_mean(self.SE_loss) ))
+        self.cal_gradient(tf.trainable_variables())
+
 
 
 class IHP(HP_model):
