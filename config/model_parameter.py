@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 
 class model_parameter:
@@ -34,9 +34,9 @@ class model_parameter:
         # 最大梯度渐变到5
         self.flags.DEFINE_float('max_gradient_norm', 1.0, 'Clip gradients to this norm')
         # 训练批次32
-        self.flags.DEFINE_integer('train_batch_size', 16, 'Training Batch size')
+        self.flags.DEFINE_integer('train_batch_size', 512, 'Training Batch size')
         # 测试批次128
-        self.flags.DEFINE_integer('test_batch_size', 16, 'Testing Batch size')
+        self.flags.DEFINE_integer('test_batch_size', 512, 'Testing Batch size')
         # 最大迭代次数
         self.flags.DEFINE_integer('max_epochs', 500, 'Maximum # of training epochs')
         # 每100个批次的训练状态
@@ -46,12 +46,11 @@ class model_parameter:
         self.flags.DEFINE_integer('global_step', 100, 'global_step to summery AUC')
 
         # Runtime parameters
-        self.flags.DEFINE_string('cuda_visible_devices', '1', 'Choice which GPU to use')
         self.flags.DEFINE_float('per_process_gpu_memory_fraction', 0.8,
                                 'Gpu memory use fraction, 0.0 for allow_growth=True')
         # date process parameters
         self.flags.DEFINE_boolean('is_training', True, 'train of inference')
-        self.flags.DEFINE_string('type', "twitter_event", 'raw date type')
+        self.flags.DEFINE_string('type', "mimic_total", 'raw date type')
         self.flags.DEFINE_integer('max_seq_len',10,'the maximum length of history event')
 
         #parameters about origin_data
@@ -75,30 +74,48 @@ class model_parameter:
         # self.flags.DEFINE_string('experiment_name', "data_init", "the expeiment")
         # self.flags.DEFINE_string('experiment_name', "MTAM", "the expeiment")
 
+
+
+        #TODO 1:check cuda
+        self.flags.DEFINE_string('cuda_visible_devices', '2', 'Choice which GPU to use')
+
+        #TODO 2: check model
+
         # model & prepare the dataset
-        self.flags.DEFINE_boolean('split_data', True, "if data is needed to be splitted")
+        self.flags.DEFINE_boolean('split_data', False, "if data is needed to be splitted")
         self.flags.DEFINE_float('learning_rate', 0.0005, 'Learning rate')
         # self.flags.DEFINE_string('model_name', "Vallina_Gru", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_only_time_aware_RNN", 'model name')
         # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_time", 'model name')
-        self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_att_time", 'model name')
+        # self.flags.DEFINE_string('model_name', "MTAM_TPP_wendy_att_time", 'model name')
+        # self.flags.DEFINE_string('model_name', "TANHP_v2", 'model name')
+        self.flags.DEFINE_string('model_name', "TANHP_v3", 'model name')
         # self.flags.DEFINE_string('model_name', "THP", 'model name')
         # self.flags.DEFINE_string('model_name', "NHP", 'model name')
         # self.flags.DEFINE_string('model_name', "RMTPP", 'model name')
         # self.flags.DEFINE_string('model_name', "SAHP", 'model name')
         # self.flags.DEFINE_string('model_name', "HP", 'model name')
         # self.flags.DEFINE_string('model_name', "IHP", 'model name')
-        self.flags.DEFINE_string('data_name', 'mimic_total', 'the type of the dataset')
-        self.flags.DEFINE_float('scale', 1, 'the type of the dataset')
-        self.flags.DEFINE_integer('inner_sims_len', 5, 'samples of the inner part for calculating time')
-        self.flags.DEFINE_integer('outer_sims_len', 5, 'samples of the outer part for calculating the time')
 
+        #TODO 3: check data
+        self.flags.DEFINE_string('data_name', 'conttime', 'the type of the dataset')
+
+        #TODO 4: check loss
 
         # loss function
         # self.flags.DEFINE_string('loss', 'cross_entropy', 'the loss function ')
         # self.flags.DEFINE_string('loss', 'llh_ce', 'the loss function ')
         # self.flags.DEFINE_string('loss', 'log_likelihood', 'the loss function ')
-        self.flags.DEFINE_string('loss', 'se_ce', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'no_cross_entropy', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'no_rmse', 'the loss function ')
+        # self.flags.DEFINE_string('loss', 'no_loglikelihood', 'the loss function ')
+        self.flags.DEFINE_string('loss', 'all', 'the loss function ')
+
+        self.flags.DEFINE_float('scale', 1, 'the type of the dataset')
+        self.flags.DEFINE_integer('inner_sims_len', 5, 'samples of the inner part for calculating time')
+        self.flags.DEFINE_integer('outer_sims_len', 5, 'samples of the outer part for calculating the time')
+
+
 
 
         # temporary point process
@@ -107,6 +124,10 @@ class model_parameter:
 
         self.flags.DEFINE_string('integral_cal','MC','the method to calculate integral')
 
+        self.flags.DEFINE_string('origin_train_name','train.pkl','origin train name')
+        self.flags.DEFINE_string('origin_test_name','test.pkl','origin test name')
+        self.flags.DEFINE_string('processed_train_name', 'train.txt', 'origin train name')
+        self.flags.DEFINE_string('processed_test_name', 'test.txt', 'origin test name')
 
         #prepare data
 
@@ -123,28 +144,42 @@ class model_parameter:
         #     self.flags.FLAGS.learning_rate = 0.0001
         # elif self.flags.FLAGS.model_name == 'IHP':
         #     self.flags.FLAGS.learning_rate = 0.0001
+
+
         if type == 'twitter_retweet':
             self.flags.FLAGS.type_num = 3
             self.flags.FLAGS.sims_len = 3
-            self.flags.FLAGS.max_seq_len = 50
-            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_retweet/"
-            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/training_testing_data/data_retweet/"
+            self.flags.FLAGS.max_seq_len = 20
+
+            self.flags.FLAGS.origin_train_name = 'train_small_time.pkl'
+            self.flags.FLAGS.origin_test_name = 'test_small_time.pkl'
+            self.flags.FLAGS.processed_train_name = 'train_small_time.txt'
+            self.flags.FLAGS.processed_test_name = 'test_small_time.txt'
+
+            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_retweet/"
+            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_retweet/"
             # self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_retweet/"
             # self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_retweet/"
         elif type == 'so':
             self.flags.FLAGS.type_num = 22
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 20
-            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_so/fold4/"
-            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_so/fold4/"
+
+            self.flags.FLAGS.origin_train_name = 'train_small_time.pkl'
+            self.flags.FLAGS.origin_test_name = 'test_small_time.pkl'
+            self.flags.FLAGS.processed_train_name = 'train_small_time.txt'
+            self.flags.FLAGS.processed_test_name = 'test_small_time.txt'
+
+            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_so/fold4/"
+            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_so/fold4/"
             # self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
         elif type == 'hawkes':
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 20
-            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_hawkes/"
-            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_hawkes/"
+            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_hawkes/"
             # self.flags.FLAGS.in_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/origin_data/data_hawkes/"
             # self.flags.FLAGS.out_data_root_path = "/Users/wendy/Documents/code/TPP_V2/data/training_testing_data/data_hawkes/"
 
@@ -152,8 +187,8 @@ class model_parameter:
             self.flags.FLAGS.type_num = 5
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
-            self.flags.FLAGS.in_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/origin_data/data_hawkesinhib/"
-            self.flags.FLAGS.out_data_root_path = "/home/cbd109-2/Users/zxl/project/TPP_V2/data/training_testing_data/data_hawkesinhib/"
+            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_hawkesinhib/"
+            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_hawkesinhib/"
             # self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_hawkesinhib/"
             # self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_hawkesinhib/"
         elif type == 'conttime':
@@ -165,82 +200,30 @@ class model_parameter:
             # self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_conttime/"
             # self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_conttime/"
 
-        elif type == 'meme':
-            self.flags.FLAGS.type_num = 5000
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 5
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_meme/"
-            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_meme/"
-        elif type == 'jd':
-            self.flags.FLAGS.type_num = 10
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_JD/"
-            self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_JD/"
-
-
         elif type == 'financial':
             self.flags.FLAGS.type_num = 2
             # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 500
+            self.flags.FLAGS.max_seq_len = 50
+
+            self.flags.FLAGS.origin_train_name = 'train_small_time_for_rmtpp.pkl'
+            self.flags.FLAGS.origin_test_name = 'test_small_time_for_rmtpp.pkl'
+            self.flags.FLAGS.processed_train_name = 'train_small_time_for_rmtpp.txt'
+            self.flags.FLAGS.processed_test_name = 'test_small_time_for_rmtpp.txt'
+
+
             # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
             # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
             self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_bookorder/fold1/"
             self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_bookorder/fold1/"
 
-
-        elif type == 'mimic_fold1':
-            self.flags.FLAGS.type_num = 75
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold1/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold1/"
-        elif type == 'mimic_fold2':
-            self.flags.FLAGS.type_num = 75
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold2/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold2/"
-        elif type == 'mimic_fold3':
-            self.flags.FLAGS.type_num = 75
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold3/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold3/"
-        elif type == 'mimic_fold4':
-            self.flags.FLAGS.type_num = 75
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold4/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold4/"
-        elif type == 'mimic_fold5':
-            self.flags.FLAGS.type_num = 75
-            # self.flags.FLAGS.max_length_seq = 100
-            self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
-            self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/fold5/"
-            self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/fold5/"
         elif type == 'mimic_total':
             self.flags.FLAGS.type_num = 75
             # self.flags.FLAGS.max_length_seq = 100
             self.flags.FLAGS.max_seq_len = 50
-            # self.flags.FLAGS.in_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/origin_data/data_conttime/"
-            # self.flags.FLAGS.out_data_root_path = "/home/cbd109/Users/zxl/PythonProject/TPP_V2/data/training_testing_data/data_conttime/"
             self.flags.FLAGS.in_data_root_path = "D://Project/TPP_V2/data/origin_data/data_mimic/total/"
             self.flags.FLAGS.out_data_root_path = "D://Project/TPP_V2/data/training_testing_data/data_mimic/total/"
+            # self.flags.FLAGS.in_data_root_path = "/home/zxl/project/TPP_V2/data/origin_data/data_mimic/total/"
+            # self.flags.FLAGS.out_data_root_path = "/home/zxl/project/TPP_V2/data/training_testing_data/data_mimic/total/"
 
         return  self.flags
 

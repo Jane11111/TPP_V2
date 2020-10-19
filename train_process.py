@@ -8,7 +8,7 @@ import os
 import time
 import random
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from Embedding.history_embedding import history_embedding
 from util.model_log import create_log
@@ -16,7 +16,7 @@ from DataHandle.get_input_data import DataInput
 
 from Prepare.data_loader import DataLoader
 from config.model_parameter import model_parameter
-from Model.AttentionTPP import MTAM_TPP_wendy_att_time
+from Model.AttentionTPP import MTAM_TPP_wendy_att_time,TANHP_v2,TANHP_v3
 from Model.THP import THP
 from Model.NHP import NHP
 from Model.RMTPP import RMTPP
@@ -77,7 +77,7 @@ class Train_main_process:
             )
 
         os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-        os.environ['CUDA_DEVISIBLE_DEVICES'] = self.FLAGS.cuda_visible_devices
+        os.environ['CUDA_VISIBLE_DEVICES'] = self.FLAGS.cuda_visible_devices
 
 
         self.sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_option))
@@ -98,6 +98,10 @@ class Train_main_process:
                 self.model = THP(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'MTAM_TPP_wendy_att_time':
                 self.model = MTAM_TPP_wendy_att_time(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'TANHP_v2':
+                self.model = TANHP_v2(self.FLAGS, self.emb, self.sess)
+            elif self.FLAGS.model_name == 'TANHP_v3':
+                self.model = TANHP_v3(self.FLAGS, self.emb, self.sess)
             elif self.FLAGS.model_name == 'NHP':
                 self.model = NHP(self.FLAGS,self.emb,self.sess)
             elif self.FLAGS.model_name == 'RMTPP':
@@ -176,8 +180,7 @@ class Train_main_process:
                 epoch_start_time = time.time()
 
                 random.shuffle(self.train_set)
-                # 内存增加原因？？？
-                self.sess.graph.finalize()
+
 
                 for step_i,train_batch_data in DataInput(self.train_set, self.FLAGS.train_batch_size):
                     llh_decay_rate = self.sess.run(decay_rate, feed_dict={global_step_lr: self.global_step})
@@ -191,6 +194,8 @@ class Train_main_process:
                     ce_loss,se_loss,\
                     l2_norm, merge,_ = self.model.train(self.sess, train_batch_data, learning_rate,llh_decay_rate)
                     self.model.train_writer.add_summary(merge, self.global_step)
+
+                    self.sess.graph.finalize()
 
                     count += len(train_batch_data)
 

@@ -3,13 +3,13 @@
 # @Author  : zxl
 # @FileName: AttentionTPP.py
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from Model.Modules.gru import GRU
 from Model.base_model import base_model
 from Model.Modules.net_utils import gather_indexes, layer_norm
 from Model.Modules.time_aware_attention import Time_Aware_Attention
 from Model.Modules.type_aware_attention import Type_Aware_Attention
-from Model.Modules.intensity_calculation import mlt_intensity,single_intensity,e_intensity,thp_intensity_calculation
+from Model.Modules.intensity_calculation import mlt_intensity,single_intensity,e_intensity,type_intensity,w_intensity
 from Model.Modules.type_prediction import e_type_predictor
 from Model.Modules.time_prediction import thp_time_predictor
 from Model.Modules.transformer_encoder import transformer_encoder
@@ -192,6 +192,396 @@ class AttentionTPP_model(base_model):
 #         self.output()
 
 
+class TANHP_v3(AttentionTPP_model):
+    """
+
+    强度和type完全共享
+    """
+    def get_rnn_emb(self,time_last,time_now):
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+
+            time_aware_gru_net_input = tf.concat([ self.type_lst_embedding ,
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=tf.add(self.seq_len,-1),  #
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=self.now_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions=self.mask_index -1 )#batch_size, num_units
+            interval_bar = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
+            short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+        return short_term_intent4vallina,interval_bar
+
+    def get_type_emb(self,short_term_intent4vallina,type_lst_embedding,seq_len,time_lst,target_time):
+        """
+        用rnn embedding 做query
+        用target time
+        :param short_term_intent4vallina:
+        :param target_time:
+        :return:
+        """
+        with tf.variable_scope('type_long-term', reuse=tf.AUTO_REUSE):
+            predict_lambda_emb = self.time_aware_attention.vanilla_attention(enc= type_lst_embedding,
+                                                                             dec=short_term_intent4vallina,
+                                                                             num_units=self.num_units,
+                                                                             num_heads=self.num_heads,
+                                                                             num_blocks=self.num_blocks,
+                                                                             dropout_rate=self.dropout_rate,
+                                                                             is_training=True,
+                                                                             reuse=False,
+                                                                             key_length= seq_len,  # TODO 这里为什么不减去1
+                                                                             query_length=tf.ones_like(
+                                                                                 short_term_intent4vallina[:, 0, 0],
+                                                                                 dtype=tf.int32),
+                                                                             t_querys=tf.expand_dims(target_time, 1),
+                                                                             t_keys= time_lst,
+                                                                             t_keys_length=self.max_seq_len,
+                                                                             t_querys_length=1
+                                                                             )
+            predict_lambda_emb = tf.reshape(predict_lambda_emb, [-1, self.num_units])
+            predict_lambda_emb = layer_norm(predict_lambda_emb)
+
+        return predict_lambda_emb
+
+
+    def get_intensity_emb(self,target_type_embedding,type_lst_embedding,seq_len,time_lst,target_time ):
+        """
+        用target type做query 计算intensity embedding
+        以及 target time
+        :param target_type_embedding:
+        :param target_time:
+        :return:
+        """
+        target_type_embedding = tf.reshape(target_type_embedding,[-1,1,self.num_units])
+        with tf.variable_scope('intensity_long-term', reuse=tf.AUTO_REUSE):
+            predict_lambda_emb = self.time_aware_attention.vanilla_attention(enc= type_lst_embedding,
+                                                                             dec=target_type_embedding,
+                                                                             num_units=self.num_units,
+                                                                             num_heads=self.num_heads,
+                                                                             num_blocks=self.num_blocks,
+                                                                             dropout_rate=self.dropout_rate,
+                                                                             is_training=True,
+                                                                             reuse=False,
+                                                                             key_length= seq_len,  # TODO 这里为什么不减去1
+                                                                             query_length=tf.ones_like(
+                                                                                 target_type_embedding[:, 0, 0],
+                                                                                 dtype=tf.int32),
+                                                                             t_querys=tf.expand_dims(target_time, 1),
+                                                                             t_keys= time_lst,
+                                                                             t_keys_length=self.max_seq_len,
+                                                                             t_querys_length=1
+                                                                             )
+            predict_lambda_emb = tf.reshape(predict_lambda_emb, [-1, self.num_units])
+            predict_lambda_emb = layer_norm(predict_lambda_emb)
+
+        return predict_lambda_emb
+
+
+
+    def predict_time(self,time_last, short_term_intent4vallina,interval_bar):
+
+        with tf.variable_scope('predict_time',reuse= tf.AUTO_REUSE):
+            self.last_time = gather_indexes(batch_size=self.now_batch_size,
+                                               seq_length=self.max_seq_len,
+                                               width=1,
+                                               sequence_tensor=self.time_lst,
+                                               positions=self.mask_index - 1)# 上一个时间
+            self.interval = self.time_aware_attention.vanilla_attention4time(enc=self.type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length=self.seq_len-1, # TODO 需要减1
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 timelast_lst = time_last,
+                                                                 last_time = self.last_time,
+                                                                 time_interval=tf.expand_dims(interval_bar,axis=1),
+                                                                 t_keys=self.time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1)
+        return self.last_time+self.interval
+
+
+    def build_model(self):
+        self.time_aware_attention = Time_Aware_Attention()
+        self.attention = Attention()
+        self.gru_net_ins = GRU()
+        self.transformer_model = transformer_encoder()
+
+        type_predictor = e_type_predictor()  # 用E W(emb)
+        intensity_predictor = w_intensity(self.num_units)
+
+        with tf.variable_scope('time_aware_rnn'):
+            short_term_intent4vallina, interval_bar = self.get_rnn_emb(self.target_time_last_lst,self.target_time_now_lst) # batch_size, ...
+
+        with tf.variable_scope('time_att'):
+            self.predict_time = self.predict_time(self.target_time_last_lst,short_term_intent4vallina,interval_bar)
+
+        with tf.variable_scope('type_att'):
+            predict_target_type_emb = self.get_type_emb(short_term_intent4vallina=short_term_intent4vallina,
+                                                        type_lst_embedding=self.type_lst_embedding,
+                                                        seq_len = self.seq_len,
+                                                        time_lst = self.time_lst,
+                                                        target_time = self.target_time) # batch_size, num_units
+
+            self.predict_type_prob = type_predictor.predict_type(emb=predict_target_type_emb,
+                                                                 num_units=self.num_units,
+                                                                 type_num=self.type_num,
+                                                                 type_table=self.embedding.type_emb_lookup_table)
+
+        with tf.variable_scope('intensity_att'):
+            predict_target_intensity_emb = self.get_intensity_emb(target_type_embedding= self.target_type_embedding,
+                                                        type_lst_embedding=self.type_lst_embedding,
+                                                        seq_len=self.seq_len,
+                                                        time_lst=self.time_lst,
+                                                        target_time=self.target_time)  # batch_size, num_units
+
+            predict_target_inensity = intensity_predictor.cal_target_intensity(predict_target_intensity_emb) # batch_size, 1
+
+
+            type_lst_embedding_for_sims = tf.tile(self.type_lst_embedding, [1, self.sims_len, 1])
+            type_lst_embedding_for_sims = tf.reshape(type_lst_embedding_for_sims,
+                                                     [-1, self.max_seq_len, self.num_units])
+            seq_len_for_sims = tf.reshape(self.seq_len, (-1, 1))
+            seq_len_for_sims = tf.reshape(tf.tile(seq_len_for_sims, [1, self.sims_len]),
+                                          (-1,))  # batch_size * sims_len,
+            time_lst_for_sims = tf.tile(self.time_lst, [1, self.sims_len])  # batch_size, max_seq_len * sims_len
+            time_lst_for_sims = tf.reshape(time_lst_for_sims, [-1, self.max_seq_len])
+            target_time_for_sims = tf.reshape(self.sims_time_lst, shape=(-1,))  # batch_size * sims_len,
+
+            predict_sims_intensity = [] #
+            tmp = tf.to_int32(tf.ones_like(target_time_for_sims))# batch_size * sims_len,
+            for i in range(self.type_num):
+                sims_type_embedding = self.embedding.get_type_embedding(tmp*i)
+                emb = self.get_intensity_emb(target_type_embedding = sims_type_embedding,
+                                             type_lst_embedding=type_lst_embedding_for_sims,
+                                             seq_len = seq_len_for_sims,
+                                             time_lst = time_lst_for_sims,
+                                             target_time = target_time_for_sims)
+                cur_intensity = intensity_predictor.cal_target_intensity(emb)
+                predict_sims_intensity.append(cur_intensity)
+            predict_sims_intensity = tf.concat(predict_sims_intensity,axis=1) # batch_size * sims_len, type_num
+        self.sims_lambda = tf.reshape(predict_sims_intensity,[-1,self.sims_len,self.type_num])
+        self.target_lambda = tf.tile(predict_target_inensity,[1,self.type_num])
+        #
+        # tmp = tf.to_float(tf.reshape(tf.ones_like(self.seq_len),[-1,1]))
+        #
+        # self.target_lambda = tf.tile(tmp,[1,self.type_num])
+        # self.sims_lambda = tf.reshape(tf.tile(tmp,[1,self.sims_len * self.type_num]),[-1,self.sims_len, self.type_num])
+
+
+
+
+        self.output()
+
+
+class TANHP_v2(AttentionTPP_model):
+    """
+
+    强度和type完全共享
+    """
+
+    def get_target_emb (self,target_time,time_last,time_now ):
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+
+            time_aware_gru_net_input = tf.concat([ self.type_lst_embedding ,
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=tf.add(self.seq_len,-1),  #
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=self.now_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions=self.mask_index -1 )#batch_size, num_units
+            self.interval_bar = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
+            short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+        with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
+            predict_lambda_emb = self.time_aware_attention.vanilla_attention(enc=self.type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length=self.seq_len, # TODO 这里为什么不减去1
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 t_querys=tf.expand_dims(target_time,1),
+                                                                 t_keys=self.time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1
+                                                                 )
+            predict_lambda_emb = tf.reshape(predict_lambda_emb,[-1,self.num_units])
+
+
+
+        return layer_norm(predict_lambda_emb), short_term_intent4vallina,self.interval_bar
+
+    def get_sims_emb (self,target_time,time_last,time_now ):
+        """
+
+        :param target_time: batch_size * sims_len,
+        :param time_last: batch_size * sims_len, max_seq_len
+        :param time_now: batch_size * sims_len, max_seq_len
+        :return:
+        """
+        type_lst_embedding = tf.tile(self.type_lst_embedding, [1,self.sims_len, 1])
+        type_lst_embedding = tf.reshape(type_lst_embedding,[-1,self.max_seq_len,self.num_units])
+        seq_len = tf.reshape(self.seq_len, (-1,1))
+        seq_len = tf.reshape(tf.tile(seq_len, [1,self.sims_len]),(-1,)) # batch_size * sims_len,
+        mask_index = tf.reshape( seq_len - 1, (-1, 1))
+
+        cur_batch_size = self.now_batch_size*self.sims_len
+
+        time_lst = tf.tile(self.time_lst, [1,self.sims_len]) # batch_size, max_seq_len * sims_len
+        time_lst = tf.reshape(time_lst, [-1, self.max_seq_len])
+
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+
+
+            time_aware_gru_net_input = tf.concat([ type_lst_embedding ,
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=tf.add(seq_len,-1),  #
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=cur_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions= mask_index -1 )#batch_size, num_units
+            self.interval_bar = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
+            short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+        with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
+            predict_lambda_emb = self.time_aware_attention.vanilla_attention(enc= type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length= seq_len, # TODO 这里为什么不减去1
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 t_querys=tf.expand_dims(target_time,1),
+                                                                 t_keys= time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1
+                                                                 )
+            predict_lambda_emb = tf.reshape(predict_lambda_emb,[-1,self.num_units])
+
+
+
+        return layer_norm(predict_lambda_emb)
+
+    def predict_time(self,time_last, short_term_intent4vallina,interval_bar):
+
+        with tf.variable_scope('predict_time',reuse= tf.AUTO_REUSE):
+            self.last_time = gather_indexes(batch_size=self.now_batch_size,
+                                               seq_length=self.max_seq_len,
+                                               width=1,
+                                               sequence_tensor=self.time_lst,
+                                               positions=self.mask_index - 1)# 上一个时间
+            self.interval = self.time_aware_attention.vanilla_attention4time(enc=self.type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length=self.seq_len-1, # TODO 需要减1
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 timelast_lst = time_last,
+                                                                 last_time = self.last_time,
+                                                                 time_interval=tf.expand_dims(interval_bar,axis=1),
+                                                                 t_keys=self.time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1)
+        return self.last_time+self.interval
+
+
+    def build_model(self):
+        self.time_aware_attention = Time_Aware_Attention()
+        self.attention = Attention()
+        self.gru_net_ins = GRU()
+        self.transformer_model = transformer_encoder()
+
+        predict_target_lambda_emb, short_term_intent4vallina, interval_bar = self.get_target_emb(self.target_time, self.target_time_last_lst,
+                                                                       self.target_time_now_lst)
+        predict_time = self.predict_time(time_last = self.target_time_last_lst,
+                                         short_term_intent4vallina=short_term_intent4vallina,
+                                         interval_bar=interval_bar)
+
+
+
+        sims_time = tf.reshape(self.sims_time_lst,shape=(-1,)) # batch_size * sims_len,
+        sims_time_last = tf.reshape(self.sim_time_last_lst, shape=(-1,self.max_seq_len)) # batch_size*sims_len, max_seq_len
+        sims_time_now = tf.reshape(self.sim_time_now_lst, shape=(-1,self.max_seq_len))
+        predict_sims_emb = self.get_sims_emb(sims_time,sims_time_last,sims_time_now)
+
+
+        predict_sims_emb = tf.reshape(predict_sims_emb,[-1,self.sims_len,self.num_units])# batch_size, sims_len , num_units
+
+        self.predict_target_emb = predict_target_lambda_emb #
+        self.predict_sims_emb = predict_sims_emb
+        self.emb_for_time = predict_time
+
+        with tf.variable_scope('prepare_emb'):
+            emb_for_intensity = self.predict_target_emb
+            emb_for_time = self.emb_for_time
+            emb_for_type = self.predict_target_emb
+
+        with tf.variable_scope('type_time_calculation'):
+            time_predictor = thp_time_predictor()
+            self.predict_time = predict_time
+
+            type_predictor = e_type_predictor() # 用E W(emb)
+            self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
+                                                                 num_units=self.num_units,
+                                                                 type_num=self.type_num,
+                                                                 type_table = self.embedding.type_emb_lookup_table)
+            # self.predict_type_prob = tf.matmul(self.predict_type_prob, self.embedding.type_emb_lookup_table[:-3, :],
+            #                                    transpose_b=True)
+
+        # with tf.variable_scope('intensity_calculation'):
+            type_lookup_table = self.embedding.type_emb_lookup_table[:-3, :]  # type_num   , num_units
+            intensity_model = type_intensity(type_predictor=type_predictor,num_units = self.num_units, W=type_lookup_table, type_num=self.type_num)
+
+            self.target_lambda = tf.nn.softplus(intensity_model.cal_target_intensity(emb_for_intensity))
+            self.sims_lambda = tf.nn.softplus(intensity_model.cal_sims_intensity(self.predict_sims_emb, max_sims_len=self.sims_len,
+                                                                     num_units=self.num_units))
+
+
+
+        self.output()
 
 class MTAM_TPP_wendy_att_time(AttentionTPP_model):
 
@@ -397,6 +787,165 @@ class MTAM_TPP_wendy_att_time(AttentionTPP_model):
 
         self.output()
 
+class TA_GRU(AttentionTPP_model):
+
+    def get_target_emb (self,target_time,time_last,time_now ):
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+
+            time_aware_gru_net_input = tf.concat([ self.type_lst_embedding ,
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=tf.add(self.seq_len,-1),  #
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=self.now_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions=self.mask_index -1 )#batch_size, num_units
+            self.interval_bar = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
+            short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+
+            predict_lambda_emb = short_term_intent
+
+
+        return  predict_lambda_emb , short_term_intent4vallina,self.interval_bar
+
+    def get_sims_emb (self,target_time,time_last,time_now ):
+        """
+
+        :param target_time: batch_size * sims_len,
+        :param time_last: batch_size * sims_len, max_seq_len
+        :param time_now: batch_size * sims_len, max_seq_len
+        :return:
+        """
+        type_lst_embedding = tf.tile(self.type_lst_embedding, [1,self.sims_len, 1])
+        type_lst_embedding = tf.reshape(type_lst_embedding,[-1,self.max_seq_len,self.num_units])
+        seq_len = tf.reshape(self.seq_len, (-1,1))
+        seq_len = tf.reshape(tf.tile(seq_len, [1,self.sims_len]),(-1,)) # batch_size * sims_len,
+        mask_index = tf.reshape( seq_len - 1, (-1, 1))
+
+        cur_batch_size = self.now_batch_size*self.sims_len
+
+        time_lst = tf.tile(self.time_lst, [1,self.sims_len]) # batch_size, max_seq_len * sims_len
+        time_lst = tf.reshape(time_lst, [-1, self.max_seq_len])
+
+        with tf.variable_scope('short-term', reuse=tf.AUTO_REUSE):
+
+
+            time_aware_gru_net_input = tf.concat([ type_lst_embedding ,
+                                              tf.expand_dims(time_last, 2),
+                                              tf.expand_dims(time_now, 2)],
+                                             axis=2)
+            self.short_term_intent_temp = self.gru_net_ins.time_gru_net(hidden_units=self.num_units,
+                                                                          input_data=time_aware_gru_net_input,
+                                                                          input_length=tf.add(seq_len,-1),  #
+                                                                          type='new',
+                                                                          scope='gru')
+            short_term_intent = gather_indexes(batch_size=cur_batch_size,
+                                           seq_length=self.max_seq_len,
+                                           width=self.num_units,
+                                           sequence_tensor=self.short_term_intent_temp,
+                                           positions= mask_index -1 )#batch_size, num_units
+            self.interval_bar = short_term_intent[:,-1] # 最后一位是interval batch_size,
+            short_term_intent = short_term_intent[:,:-1]# 前面是h
+            short_term_intent = tf.layers.dense(short_term_intent, self.num_units)
+            short_term_intent4vallina = tf.expand_dims(short_term_intent, 1)
+        with tf.variable_scope('long-term',reuse=tf.AUTO_REUSE):
+            predict_lambda_emb = self.time_aware_attention.vanilla_attention(enc= type_lst_embedding,
+                                                                 dec=short_term_intent4vallina,
+                                                                 num_units=self.num_units,
+                                                                 num_heads=self.num_heads,
+                                                                 num_blocks=self.num_blocks,
+                                                                 dropout_rate=self.dropout_rate,
+                                                                 is_training=True,
+                                                                 reuse=False,
+                                                                 key_length= seq_len, # TODO 这里为什么不减去1
+                                                                 query_length=tf.ones_like(short_term_intent4vallina[:, 0, 0],
+                                                                                           dtype=tf.int32),
+                                                                 t_querys=tf.expand_dims(target_time,1),
+                                                                 t_keys= time_lst,
+                                                                 t_keys_length=self.max_seq_len,
+                                                                 t_querys_length=1
+                                                                 )
+            predict_lambda_emb = tf.reshape(predict_lambda_emb,[-1,self.num_units])
+
+
+
+        return layer_norm(predict_lambda_emb)
+
+    def predict_time(self,time_last, short_term_intent4vallina,interval_bar):
+
+        with tf.variable_scope('predict_time',reuse= tf.AUTO_REUSE):
+            self.last_time = gather_indexes(batch_size=self.now_batch_size,
+                                               seq_length=self.max_seq_len,
+                                               width=1,
+                                               sequence_tensor=self.time_lst,
+                                               positions=self.mask_index - 1)# 上一个时间
+            self.interval = tf.reshape(interval_bar,[-1,1])
+
+
+        return self.last_time+self.interval
+
+
+    def build_model(self):
+        self.time_aware_attention = Time_Aware_Attention()
+        self.attention = Attention()
+        self.gru_net_ins = GRU()
+        self.transformer_model = transformer_encoder()
+
+        predict_target_lambda_emb, short_term_intent4vallina, interval_bar = self.get_target_emb(self.target_time, self.target_time_last_lst,
+                                                                       self.target_time_now_lst)
+        predict_time = self.predict_time(time_last = self.target_time_last_lst,
+                                         short_term_intent4vallina=short_term_intent4vallina,
+                                         interval_bar=interval_bar)
+
+
+        sims_time = tf.reshape(self.sims_time_lst,shape=(-1,)) # batch_size * sims_len,
+        sims_time_last = tf.reshape(self.sim_time_last_lst, shape=(-1,self.max_seq_len)) # batch_size*sims_len, max_seq_len
+        sims_time_now = tf.reshape(self.sim_time_now_lst, shape=(-1,self.max_seq_len))
+        predict_sims_emb = self.get_sims_emb(sims_time,sims_time_last,sims_time_now)
+
+
+        predict_sims_emb = tf.reshape(predict_sims_emb,[-1,self.sims_len,self.num_units])# batch_size, sims_len , num_units
+
+        self.predict_target_emb = predict_target_lambda_emb #
+        self.predict_sims_emb = predict_sims_emb
+        self.emb_for_time = predict_time
+
+        with tf.variable_scope('prepare_emb'):
+            emb_for_intensity = self.predict_target_emb
+            emb_for_time = self.emb_for_time
+            emb_for_type = self.predict_target_emb
+
+        with tf.variable_scope('type_time_calculation'):
+            time_predictor = thp_time_predictor()
+            self.predict_time = predict_time
+
+            type_predictor = e_type_predictor() # 用E W(emb)
+            self.predict_type_prob = type_predictor.predict_type(emb=emb_for_type,
+                                                                 num_units=self.num_units,
+                                                                 type_num=self.type_num,
+                                                                 type_table = self.embedding.type_emb_lookup_table)
+            # self.predict_type_prob = tf.matmul(self.predict_type_prob, self.embedding.type_emb_lookup_table[:-3, :],
+            #                                    transpose_b=True)
+
+        # with tf.variable_scope('intensity_calculation'):
+            type_lookup_table = self.embedding.type_emb_lookup_table[:-3, :]  # type_num   , num_units
+            intensity_model = e_intensity(type_predictor=type_predictor,num_units = self.num_units, W=type_lookup_table, type_num=self.type_num)
+
+            self.target_lambda = intensity_model.cal_target_intensity(emb_for_intensity)
+            self.sims_lambda = intensity_model.cal_sims_intensity(self.predict_sims_emb, max_sims_len=self.sims_len,
+                                                                     num_units=self.num_units)
+
+
+
+        self.output()
 
 
 # class MTAM_TPP_wendy_time(AttentionTPP_model):

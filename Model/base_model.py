@@ -173,12 +173,17 @@ class base_model(object):
 
             """losss"""
 
-            if self.FLAGS.loss == 'se_ce':
-                self.loss = tf.reduce_mean(self.SE_loss)/self.FLAGS.scale   \
+            if self.FLAGS.loss == 'no_cross_entropy':
+                self.loss = tf.reduce_mean(self.SE_loss) \
+                            + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss)
+            elif self.FLAGS.loss == 'no_rmse':
+                self.loss = self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
+                            + tf.reduce_mean(self.cross_entropy_loss)
+            elif self.FLAGS.loss == 'no_loglikelihood':
+                self.loss = tf.reduce_mean(self.SE_loss) \
                             + tf.reduce_mean(self.cross_entropy_loss)
             else: # TODO se 是否需要除以一个scale
-
-                self.loss = tf.reduce_mean(self.SE_loss)/self.FLAGS.scale   \
+                self.loss = tf.reduce_mean(self.SE_loss) \
                             + self.llh_decay_rate * tf.reduce_mean(self.log_likelihood_loss) \
                             + tf.reduce_mean(self.cross_entropy_loss)
             # for metrics

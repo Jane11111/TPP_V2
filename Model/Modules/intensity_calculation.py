@@ -3,7 +3,7 @@
 # @Author  : zxl
 # @FileName: intensity_calculation.py
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 class intensity_base(object):
 
@@ -79,11 +79,60 @@ class single_intensity(intensity_base):
         predict_type_intensity = self.cal_intensity(emb, layer_units, scope,type_num)
         return predict_type_intensity
 
-
-class e_intensity():
+class type_intensity():
     """
     使用type table 计算强度
     """
+
+    def __init__(self,type_predictor, num_units,W,type_num):
+        """
+
+        :param W: type_num, num_units
+        """
+        self.type_predictor= type_predictor
+        self.num_units = num_units
+        self.type_num = type_num
+        self.W = W
+
+
+    def cal_intensity(self,emb):
+
+        """
+
+        :param emb: batch_size, num_units
+        :return:  batch_size, type_num
+        """
+
+        # intensity = tf.nn.softplus(tf.matmul(emb, self.W, transpose_b= True))
+        # return intensity
+        intensity = self.type_predictor.predict_type(emb=emb,
+                                         num_units=self.num_units,
+                                         type_num=self.type_num,
+                                         type_table = self.W)
+        intensity = tf.nn.softplus(intensity)
+        return intensity
+
+    def cal_target_intensity(self,emb):
+        """
+
+        :param emb:
+        :return:
+        """
+        return self.cal_intensity(emb)
+
+    def cal_sims_intensity(self,emb,max_sims_len,num_units):
+        """
+
+        :param emb: batch_size, max_sims_len, num_units
+        :return:
+        """
+        emb = tf.reshape(emb,[-1,num_units])
+        intensity = self.cal_intensity(emb)
+        intensity = tf.reshape(intensity,[-1,max_sims_len, self.type_num])
+        return intensity
+
+class e_intensity():
+
 
     def __init__(self,type_predictor, num_units,W,type_num):
         """
@@ -132,7 +181,46 @@ class e_intensity():
         intensity = tf.reshape(intensity,[-1,max_sims_len, self.type_num])
         return intensity
 
+class w_intensity():
 
+
+    def __init__(self,  num_units ):
+        """
+
+        :param W: type_num, num_units
+        """
+        self.num_units = num_units
+
+
+    def cal_intensity(self,emb):
+
+        """
+
+        :param emb: batch_size, num_units
+        :return:  batch_size, type_num
+        """
+
+        intensity = tf.layers.dense(emb,units=1,activation=tf.nn.softplus)
+        return intensity
+
+    def cal_target_intensity(self,emb):
+        """
+
+        :param emb:
+        :return:
+        """
+        return self.cal_intensity(emb)
+
+    def cal_sims_intensity(self,emb,max_sims_len,num_units):
+        """
+
+        :param emb: batch_size, max_sims_len, num_units
+        :return:
+        """
+        emb = tf.reshape(emb,[-1,num_units])
+        intensity = self.cal_intensity(emb)
+        intensity = tf.reshape(intensity,[-1,max_sims_len, self.type_num])
+        return intensity
 
 class thp_intensity_calculation():
 

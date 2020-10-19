@@ -10,7 +10,7 @@ class DataLoader():
 
     def __init__(self,FLAGS):
         self.FLAGS = FLAGS
-        self.FLAGS = FLAGS
+
         self.user_count = 1
         self.item_count = 1
         self.category_count = 5
@@ -50,12 +50,18 @@ class DataLoader():
 
     def load_train_test(self):
 
+        origin_train_name = self.FLAGS.origin_train_name
+        origin_test_name = self.FLAGS.origin_test_name
 
-        origin_train_path = self.FLAGS.in_data_root_path + "train.pkl"
-        origin_test_path =  self.FLAGS.in_data_root_path + "test.pkl"
+        processed_train_name = self.FLAGS.processed_train_name
+        processed_test_name = self.FLAGS.processed_test_name
 
-        train_path = self.FLAGS.out_data_root_path + "train.txt"
-        test_path = self.FLAGS.out_data_root_path + "test.txt"
+
+        origin_train_path = self.FLAGS.in_data_root_path + origin_train_name
+        origin_test_path =  self.FLAGS.in_data_root_path + origin_test_name
+
+        train_path = self.FLAGS.out_data_root_path + processed_train_name
+        test_path = self.FLAGS.out_data_root_path + processed_test_name
 
         if self.FLAGS.split_data:
             self.write_file(origin_train_path, train_path, 'train')
